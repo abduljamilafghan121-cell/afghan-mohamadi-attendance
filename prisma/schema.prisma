@@ -1,0 +1,316 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  employee
+  manager
+  admin
+}
+
+enum AttendanceEventType {
+  check_in
+  check_out
+  admin_edit
+}
+
+enum AttendanceSessionStatus {
+  open
+  closed
+  needs_approval
+  corrected
+}
+
+enum DailyQrPurpose {
+  check_in
+  check_out
+  both
+}
+
+enum LeaveRequestStatus {
+  pending
+  approved
+  rejected
+}
+
+enum LeaveType {
+  annual
+  sick
+  casual
+  unpaid
+}
+
+enum CorrectionRequestStatus {
+  pending
+  approved
+  rejected
+}
+
+enum CorrectionRequestType {
+  check_in
+  check_out
+  both
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String?  @unique
+  passwordHash String
+  role         Role     @default(employee)
+  isActive     Boolean  @default(true)
+
+  employeeId String?
+  phone      String?
+  department String?
+  jobTitle   String?
+  address    String?
+  photoUrl   String?
+
+  managerId String?
+  manager   User?   @relation("UserManager", fields: [managerId], references: [id])
+  reports   User[]  @relation("UserManager")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attendanceSessions AttendanceSession[]
+
+  dailyQrTokensCreated DailyQrToken[] @relation("DailyQrCreatedBy")
+
+  leaveRequests             LeaveRequest[]
+  correctionRequests        CorrectionRequest[]
+  correctionRequestsDecided CorrectionRequest[] @relation("CorrectionDecidedBy")
+  attendanceAuditLogs       AttendanceAuditLog[]
+
+  holidaysCreated   Holiday[]         @relation("HolidayCreatedBy")
+  workdayOverrides  WorkdayOverride[] @relation("WorkdayOverrideUser")
+  overridesCreated  WorkdayOverride[] @relation("WorkdayOverrideCreatedBy")
+  leaveBalances     LeaveBalance[]
+}
+
+model LeaveRequest {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id])
+
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+  leaveType LeaveType          @default(annual)
+
+  status      LeaveRequestStatus @default(pending)
+  decidedAt   DateTime?
+  decidedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, startDate, endDate])
+  @@index([status, startDate, endDate])
+}
+
+model Organization {
+  id      String @id @default(cuid())
+  key     String @unique @default("primary")
+  title   String
+  logoUrl String?
+
+  carryOverEnabled Boolean @default(true)
+  carryOverMaxDays Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Office {
+  id          String  @id @default(cuid())
+  name        String
+  gpsLat      Float
+  gpsLng      Float
+  gpsRadiusM  Int
+  timezone    String  @default("UTC")
+  isActive    Boolean @default(true)
+
+  weeklyOffDays Int[]   @default([5])
+  workStartTime String?
+  workEndTime   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dailyQrTokens      DailyQrToken[]
+  attendanceSessions AttendanceSession[]
+}
+
+model DailyQrToken {
+  id        String        @id @default(cuid())
+  officeId  String
+  office    Office        @relation(fields: [officeId], references: [id])
+
+  workDate  DateTime
+  purpose   DailyQrPurpose @default(both)
+
+  tokenHash String
+  validFrom DateTime
+  validTo   DateTime
+
+  createdByAdminId String?
+  createdByAdmin   User?   @relation("DailyQrCreatedBy", fields: [createdByAdminId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  attendanceEvents AttendanceEvent[]
+
+  @@index([officeId, workDate])
+}
+
+model AttendanceSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  officeId  String
+  office    Office   @relation(fields: [officeId], references: [id])
+
+  workDate  DateTime
+  status    AttendanceSessionStatus @default(open)
+
+  checkInAt  DateTime?
+  checkOutAt DateTime?
+
+  isLateArrival        Boolean @default(false)
+  isEarlyDeparture     Boolean @default(false)
+  isOvertime           Boolean @default(false)
+  minutesLate          Int?
+  minutesEarlyDeparture Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events             AttendanceEvent[]
+  correctionRequests CorrectionRequest[]
+  auditLogs          AttendanceAuditLog[]
+
+  @@unique([userId, workDate])
+  @@index([officeId, workDate])
+}
+
+model AttendanceEvent {
+  id        String              @id @default(cuid())
+  sessionId String
+  session   AttendanceSession   @relation(fields: [sessionId], references: [id])
+  type      AttendanceEventType
+
+  serverTimeUtc DateTime
+  gpsLat        Float
+  gpsLng        Float
+  gpsAccuracyM  Float?
+
+  qrTokenId String
+  qrToken   DailyQrToken @relation(fields: [qrTokenId], references: [id])
+
+  validationPassed Boolean
+  failureReason    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, type])
+  @@index([qrTokenId])
+}
+
+model CorrectionRequest {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  sessionId String?
+  session   AttendanceSession? @relation(fields: [sessionId], references: [id])
+
+  requestType      CorrectionRequestType
+  workDate         DateTime
+  intendedCheckIn  DateTime?
+  intendedCheckOut DateTime?
+  reason           String
+
+  status      CorrectionRequestStatus @default(pending)
+  decidedAt   DateTime?
+  decidedById String?
+  decidedBy   User?    @relation("CorrectionDecidedBy", fields: [decidedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, workDate])
+  @@index([status])
+}
+
+model AttendanceAuditLog {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   AttendanceSession @relation(fields: [sessionId], references: [id])
+
+  adminId   String
+  admin     User     @relation(fields: [adminId], references: [id])
+
+  field     String
+  oldValue  String?
+  newValue  String?
+  note      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+}
+
+model Holiday {
+  id          String   @id @default(cuid())
+  date        DateTime @unique
+  name        String
+  createdById String?
+  createdBy   User?    @relation("HolidayCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
+}
+
+model WorkdayOverride {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("WorkdayOverrideUser", fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime
+  isOvertime  Boolean  @default(true)
+  note        String?
+  createdById String?
+  createdBy   User?    @relation("WorkdayOverrideCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+model LeaveBalance {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  year            Int
+  leaveType       LeaveType
+  entitlementDays Float     @default(0)
+  usedDays        Float     @default(0)
+  carriedOverDays Float     @default(0)
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, year, leaveType])
+  @@index([userId, year])
+}

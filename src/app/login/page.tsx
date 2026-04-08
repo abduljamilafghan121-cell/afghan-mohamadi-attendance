@@ -1,0 +1,148 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { Card } from "../../components/ui/Card";
+import { Input } from "../../components/ui/Input";
+import { Button } from "../../components/ui/Button";
+import { apiFetch } from "../../lib/clientApi";
+import { setToken } from "../../lib/clientAuth";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [orgName, setOrgName] = useState<string | null>(null);
+  const [orgLogo, setOrgLogo] = useState<string | null>(null);
+  const [logoExpanded, setLogoExpanded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/org")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.org) {
+          setOrgName(data.org.title ?? null);
+          setOrgLogo(data.org.logoUrl ?? null);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      setError("Please enter your email and password.");
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await apiFetch<{ token: string; user: { role: string } }>("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      setToken(res.token);
+      if (res.user.role === "admin" || res.user.role === "manager") {
+        window.location.href = "/admin/attendance";
+      } else {
+        window.location.href = "/employee";
+      }
+    } catch (err: any) {
+      setError(err?.message ?? "Invalid email or password.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleLogin();
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 px-4">
+      <div className="w-full max-w-md">
+        <Card>
+          <div className="p-6">
+            <div className="text-center mb-6">
+              {orgLogo && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setLogoExpanded(true)}
+                    className="mx-auto mb-3 block focus:outline-none"
+                  >
+                    <img
+                      src={orgLogo}
+                      alt={orgName ?? "Organization logo"}
+                      className="h-20 w-20 rounded-full object-cover border border-zinc-200 shadow-sm hover:opacity-90 transition-opacity"
+                    />
+                  </button>
+                  {logoExpanded && (
+                    <button
+                      type="button"
+                      onClick={() => setLogoExpanded(false)}
+                      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm w-full focus:outline-none"
+                    >
+                      <img
+                        src={orgLogo}
+                        alt={orgName ?? "Organization logo"}
+                        className="h-64 w-64 rounded-2xl object-cover shadow-2xl border-4 border-white"
+                      />
+                    </button>
+                  )}
+                </>
+              )}
+              <h1 className="text-2xl font-bold">{orgName ?? "Attendance System"}</h1>
+              <p className="text-gray-500 text-sm">Sign in to your account</p>
+            </div>
+
+            {error && (
+              <div className="mb-4 rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700 text-center">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 mb-1">Email address</label>
+                <Input
+                  type="text"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 mb-1">Password</label>
+                <Input
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={loading}
+                />
+              </div>
+
+              <Button
+                type="button"
+                onClick={handleLogin}
+                disabled={loading}
+                className="w-full"
+              >
+                {loading ? "Signing in…" : "Sign in"}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
