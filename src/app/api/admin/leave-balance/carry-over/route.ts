@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   const maxDays = org.carryOverMaxDays ?? null;
 
   const balances = await prisma.leaveBalance.findMany({
-    where: { year: fromYear, leaveType: { in: CARRY_OVER_TYPES } },
+    where: { year: fromYear, leaveType: { in: [...CARRY_OVER_TYPES] } },
   });
 
   let processed = 0;
