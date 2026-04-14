@@ -7,6 +7,7 @@ import { signAccessToken } from "../../../../lib/auth";
 const BodySchema = z.object({
   email: z.string().min(1),
   password: z.string().min(1),
+  rememberMe: z.boolean().optional().default(false),
 });
 
 export async function POST(req: Request) {
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
-  const token = await signAccessToken({ id: user.id, role: user.role });
+  const token = await signAccessToken({ id: user.id, role: user.role }, body.data.rememberMe);
 
   return NextResponse.json({
     token,

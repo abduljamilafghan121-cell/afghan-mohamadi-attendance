@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rememberMe, setRememberMe] = useState(true);
 
   const [orgName, setOrgName] = useState<string | null>(null);
   const [orgLogo, setOrgLogo] = useState<string | null>(null);
@@ -41,7 +42,7 @@ export default function LoginPage() {
     try {
       const res = await apiFetch<{ token: string; user: { role: string } }>("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: email.trim(), password, rememberMe }),
       });
       setToken(res.token);
       if (res.user.role === "admin" || res.user.role === "manager") {
@@ -130,6 +131,37 @@ export default function LoginPage() {
                   disabled={loading}
                 />
               </div>
+
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="sr-only"
+                    disabled={loading}
+                  />
+                  <div
+                    className={`h-5 w-5 rounded-md border-2 flex items-center justify-center transition-colors duration-150 ${
+                      rememberMe
+                        ? "bg-zinc-900 border-zinc-900"
+                        : "bg-white border-zinc-300"
+                    }`}
+                  >
+                    {rememberMe && (
+                      <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="2,6 5,9 10,3" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-sm text-zinc-700 font-medium">Keep me signed in</span>
+                  <span className="ml-1.5 text-xs text-zinc-400">
+                    {rememberMe ? "30 days" : "7 days"}
+                  </span>
+                </div>
+              </label>
 
               <Button
                 type="button"

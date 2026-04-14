@@ -13,11 +13,11 @@ export type AuthUser = {
   role: Role;
 };
 
-export async function signAccessToken(payload: AuthUser) {
+export async function signAccessToken(payload: AuthUser, rememberMe = false) {
   return new SignJWT({ sub: payload.id, role: payload.role })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("7d")
+    .setExpirationTime(rememberMe ? "30d" : "7d")
     .sign(getJwtKey());
 }
 
