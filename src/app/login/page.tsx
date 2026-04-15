@@ -1,15 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { apiFetch } from "../../lib/clientApi";
-import { setToken } from "../../lib/clientAuth";
+import { clearToken, getToken, parseJwt, setToken } from "../../lib/clientAuth";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,6 +30,29 @@ export default function LoginPage() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const t = getToken();
+    if (!t) return;
+    const jwt = parseJwt(t);
+    if (!jwt) {
+      clearToken();
+      return;
+    }
+
+    (async () => {
+      try {
+        await apiFetch("/api/me");
+        if (jwt.role === "admin" || jwt.role === "manager") {
+          window.location.href = "/admin/attendance";
+        } else {
+          window.location.href = "/employee";
+        }
+      } catch {
+        clearToken();
+      }
+    })();
+  }, []);
+
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
       setError("Please enter your email and password.");
@@ -44,7 +65,7 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ email: email.trim(), password, rememberMe }),
       });
-      setToken(res.token);
+      setToken(res.token, rememberMe);
       if (res.user.role === "admin" || res.user.role === "manager") {
         window.location.href = "/admin/attendance";
       } else {

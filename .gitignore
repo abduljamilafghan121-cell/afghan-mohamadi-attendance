@@ -2,3 +2,7 @@ node_modules
 .next
 .env
 *.tar.gz
+
+.cache
+mobile
+*.apk

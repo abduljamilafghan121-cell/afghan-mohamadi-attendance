@@ -5,15 +5,27 @@ export type JwtUser = {
 
 export function getToken() {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem("attendance_token");
+  return (
+    window.localStorage.getItem("attendance_token") ||
+    window.sessionStorage.getItem("attendance_token")
+  );
 }
 
-export function setToken(token: string) {
-  window.localStorage.setItem("attendance_token", token);
+export function setToken(token: string, rememberMe = true) {
+  if (typeof window === "undefined") return;
+  if (rememberMe) {
+    window.localStorage.setItem("attendance_token", token);
+    window.sessionStorage.removeItem("attendance_token");
+  } else {
+    window.sessionStorage.setItem("attendance_token", token);
+    window.localStorage.removeItem("attendance_token");
+  }
 }
 
 export function clearToken() {
+  if (typeof window === "undefined") return;
   window.localStorage.removeItem("attendance_token");
+  window.sessionStorage.removeItem("attendance_token");
 }
 
 export function parseJwt(token: string): JwtUser | null {
