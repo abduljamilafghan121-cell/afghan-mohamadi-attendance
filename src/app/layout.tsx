@@ -26,7 +26,7 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{var ua=navigator.userAgent||'';var isCap=/Capacitor/i.test(ua);if(!isCap)return;var s=document.createElement('script');s.src='capacitor://localhost/capacitor.js';document.head.appendChild(s);}catch(e){}})();",
+              "(function(){try{var ua=navigator.userAgent||'';var isAndroidWebView=/Android/i.test(ua)&&/\bwv\b/i.test(ua);if(!isAndroidWebView)return;var tryLoad=function(){try{if(window.Capacitor&&typeof window.Capacitor.getPlatform==='function')return;var s=document.createElement('script');s.src='capacitor://localhost/capacitor.js';s.onerror=function(){};document.head.appendChild(s);}catch(e){}};tryLoad();setTimeout(tryLoad,300);setTimeout(tryLoad,1200);}catch(e){}})();",
           }}
         />
       </head>
