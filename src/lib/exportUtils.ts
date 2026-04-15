@@ -26,6 +26,7 @@ export function isNativeCapacitor(): boolean {
 }
 
 async function shareFileFromTextNative(filename: string, data: string, mimeType: string): Promise<void> {
+  let nativeError: unknown = null;
   try {
     await Filesystem.writeFile({
       path: filename,
@@ -47,19 +48,26 @@ async function shareFileFromTextNative(filename: string, data: string, mimeType:
     });
     return;
   } catch (e) {
-    if (isNativeCapacitor()) {
-      // If we are native and this fails, it's almost always missing plugin JS in the web bundle
-      // or plugin registration mismatch.
-      throw new Error("Export failed in APK. Please rebuild the APK after running: npm install (root) + npx cap sync android (mobile)." );
-    }
-    // Fallback: some builds rely on the global plugin registration.
+    nativeError = e;
   }
 
   const cap = getCapacitorGlobal();
   const fs = cap?.Plugins?.Filesystem;
   const sh = cap?.Plugins?.Share;
   if (!fs || !sh) {
-    throw new Error("Export is not available in this APK build (missing Capacitor Filesystem/Share plugins).");
+    const nativeErrMsg =
+      nativeError instanceof Error
+        ? nativeError.message
+        : nativeError
+          ? String(nativeError)
+          : "";
+    const hasCap = Boolean(cap);
+    throw new Error(
+      "Export failed in APK. " +
+        (nativeErrMsg ? `Native error: ${nativeErrMsg}. ` : "") +
+        `Capacitor global present: ${hasCap}. ` +
+        "Please ensure: npm install (root) + npx cap sync android (mobile) + rebuild APK."
+    );
   }
 
   await fs.writeFile({
