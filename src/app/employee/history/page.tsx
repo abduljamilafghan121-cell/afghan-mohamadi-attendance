@@ -9,6 +9,7 @@ import { Input } from "../../../components/ui/Input";
 import { Textarea } from "../../../components/ui/Textarea";
 import { apiFetch } from "../../../lib/clientApi";
 import { getToken, parseJwt } from "../../../lib/clientAuth";
+import { downloadTextFile } from "../../../lib/exportUtils";
 
 type HistoryRow = {
   date: string;
@@ -96,7 +97,7 @@ export default function EmployeeHistoryPage() {
     load();
   }, [token, startDate, endDate]);
 
-  const downloadCsv = () => {
+  const downloadCsv = async () => {
     const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const header = ["Date", "Status", "Check-in", "Check-out", "Office", "Hours Worked"];
     const body = rows.map((r) => [
@@ -106,13 +107,7 @@ export default function EmployeeHistoryPage() {
       r.officeName, r.hoursWorked ?? "",
     ]);
     const csv = [header, ...body].map((row) => row.map(esc).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `my-attendance-${startDate}-to-${endDate}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadTextFile(`my-attendance-${startDate}-to-${endDate}.csv`, csv, "text/csv;charset=utf-8");
   };
 
   const submitCorrection = async () => {

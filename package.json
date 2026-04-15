@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/filesystem": "^6.0.4",
+    "@capacitor/share": "^6.0.4",
     "@prisma/client": "^6.19.3",
     "@supabase/supabase-js": "^2.103.0",
     "@zxing/browser": "^0.1.5",

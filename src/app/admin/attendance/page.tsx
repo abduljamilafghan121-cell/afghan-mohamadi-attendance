@@ -8,6 +8,7 @@ import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { apiFetch } from "../../../lib/clientApi";
 import { getToken, parseJwt } from "../../../lib/clientAuth";
+import { downloadTextFile, exportHtmlReport } from "../../../lib/exportUtils";
 
 type Office = { id: string; name: string };
 type UserOption = { id: string; name: string; email: string | null };
@@ -118,7 +119,7 @@ export default function AdminAttendancePage() {
   const selectedOfficeName = offices.find((o) => o.id === officeId)?.name ?? "All Offices";
   const selectedUserName = users.find((u) => u.id === userId)?.name ?? "All Employees";
 
-  const downloadCsv = () => {
+  const downloadCsv = async () => {
     const esc = (v: any) => {
       const s = v === null || v === undefined ? "" : String(v);
       return `"${s.replace(/"/g, '""')}"`;
@@ -137,16 +138,12 @@ export default function AdminAttendancePage() {
         ].map(esc).join(",")
       )
     );
-    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `attendance_${startDate}_to_${endDate}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+
+    const csv = lines.join("\n");
+    await downloadTextFile(`attendance_${startDate}_to_${endDate}.csv`, csv, "text/csv;charset=utf-8");
   };
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
     const present = rows.filter((r) => r.present).length;
     const absent = rows.filter((r) => r.status === "absent").length;
     const onLeave = rows.filter((r) => r.status === "leave").length;
@@ -243,12 +240,7 @@ export default function AdminAttendancePage() {
 </body>
 </html>`;
 
-    const win = window.open("", "_blank");
-    if (!win) { alert("Please allow popups to export PDF."); return; }
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => { win.print(); }, 500);
+    await exportHtmlReport(`attendance_${startDate}_to_${endDate}`, html);
   };
 
   const startCorrection = (r: AttendanceRow) => {

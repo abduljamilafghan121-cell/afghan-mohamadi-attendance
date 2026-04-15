@@ -8,6 +8,7 @@ import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { apiFetch } from "../../../lib/clientApi";
 import { getToken, parseJwt } from "../../../lib/clientAuth";
+import { downloadTextFile, exportHtmlReport } from "../../../lib/exportUtils";
 
 type Office = { id: string; name: string };
 type UserOption = { id: string; name: string; email: string | null };
@@ -74,7 +75,7 @@ export default function AdminHoursPage() {
     load();
   }, [startDate, endDate, officeId, userId, token]);
 
-  const downloadCsv = () => {
+  const downloadCsv = async () => {
     const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const header = ["Date", "Employee", "Office", "Check-in", "Check-out", "Hours Worked"];
     const body = days.map((r) => [
@@ -86,16 +87,10 @@ export default function AdminHoursPage() {
       r.hoursWorked ?? "",
     ]);
     const csv = [header, ...body].map((row) => row.map(esc).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `work-hours-${startDate}-to-${endDate}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadTextFile(`work-hours-${startDate}-to-${endDate}.csv`, csv, "text/csv;charset=utf-8");
   };
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
     const selectedOfficeName = offices.find((o) => o.id === officeId)?.name ?? "All Offices";
     const selectedUserName = users.find((u) => u.id === userId)?.name ?? "All Employees";
     const totalHours = summaries.reduce((s, r) => s + r.totalHours, 0);
@@ -182,12 +177,7 @@ export default function AdminHoursPage() {
 </body>
 </html>`;
 
-    const win = window.open("", "_blank");
-    if (!win) return;
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 500);
+    await exportHtmlReport(`work-hours-${startDate}-to-${endDate}`, html);
   };
 
   const totalHoursAll = summaries.reduce((s, r) => s + r.totalHours, 0);
