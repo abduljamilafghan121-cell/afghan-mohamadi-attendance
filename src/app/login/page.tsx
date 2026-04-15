@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(true);
+  const [initializing, setInitializing] = useState(true);
 
   const [orgName, setOrgName] = useState<string | null>(null);
   const [orgLogo, setOrgLogo] = useState<string | null>(null);
@@ -32,10 +33,14 @@ export default function LoginPage() {
 
   useEffect(() => {
     const t = getToken();
-    if (!t) return;
+    if (!t) {
+      setInitializing(false);
+      return;
+    }
     const jwt = parseJwt(t);
     if (!jwt) {
       clearToken();
+      setInitializing(false);
       return;
     }
 
@@ -49,6 +54,7 @@ export default function LoginPage() {
         }
       } catch {
         clearToken();
+        setInitializing(false);
       }
     })();
   }, []);
@@ -81,6 +87,22 @@ export default function LoginPage() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleLogin();
   };
+
+  if (initializing) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100 px-4">
+        <div className="w-full max-w-md">
+          <Card>
+            <div className="p-6">
+              <div className="flex items-center justify-center py-8">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900" />
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 px-4">

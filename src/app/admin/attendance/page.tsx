@@ -120,35 +120,40 @@ export default function AdminAttendancePage() {
   const selectedUserName = users.find((u) => u.id === userId)?.name ?? "All Employees";
 
   const downloadCsv = async () => {
-    const esc = (v: any) => {
-      const s = v === null || v === undefined ? "" : String(v);
-      return `"${s.replace(/"/g, '""')}"`;
-    };
-    const header = ["Date", "Employee", "Email", "Office", "Check-in", "Check-out", "Status"];
-    const lines = [header.map(esc).join(",")].concat(
-      rows.map((r) =>
-        [
-          r.date,
-          r.user.name,
-          r.user.email ?? "",
-          r.office?.name ?? "",
-          r.checkInAt ? new Date(r.checkInAt).toLocaleString() : "",
-          r.checkOutAt ? new Date(r.checkOutAt).toLocaleString() : "",
-          r.status,
-        ].map(esc).join(",")
-      )
-    );
+    try {
+      const esc = (v: any) => {
+        const s = v === null || v === undefined ? "" : String(v);
+        return `"${s.replace(/"/g, '""')}"`;
+      };
+      const header = ["Date", "Employee", "Email", "Office", "Check-in", "Check-out", "Status"];
+      const lines = [header.map(esc).join(",")].concat(
+        rows.map((r) =>
+          [
+            r.date,
+            r.user.name,
+            r.user.email ?? "",
+            r.office?.name ?? "",
+            r.checkInAt ? new Date(r.checkInAt).toLocaleString() : "",
+            r.checkOutAt ? new Date(r.checkOutAt).toLocaleString() : "",
+            r.status,
+          ].map(esc).join(",")
+        )
+      );
 
-    const csv = lines.join("\n");
-    await downloadTextFile(`attendance_${startDate}_to_${endDate}.csv`, csv, "text/csv;charset=utf-8");
+      const csv = lines.join("\n");
+      await downloadTextFile(`attendance_${startDate}_to_${endDate}.csv`, csv, "text/csv;charset=utf-8");
+    } catch (e: any) {
+      alert(e?.message ?? "Export failed");
+    }
   };
 
   const exportPdf = async () => {
-    const present = rows.filter((r) => r.present).length;
-    const absent = rows.filter((r) => r.status === "absent").length;
-    const onLeave = rows.filter((r) => r.status === "leave").length;
-    const off = rows.filter((r) => r.status === "off").length;
-    const other = rows.length - present - absent - onLeave - off;
+    try {
+      const present = rows.filter((r) => r.present).length;
+      const absent = rows.filter((r) => r.status === "absent").length;
+      const onLeave = rows.filter((r) => r.status === "leave").length;
+      const off = rows.filter((r) => r.status === "off").length;
+      const other = rows.length - present - absent - onLeave - off;
 
     const filterInfo = [
       `Period: ${startDate} to ${endDate}`,
@@ -240,7 +245,10 @@ export default function AdminAttendancePage() {
 </body>
 </html>`;
 
-    await exportHtmlReport(`attendance_${startDate}_to_${endDate}`, html);
+      await exportHtmlReport(`attendance_${startDate}_to_${endDate}`, html);
+    } catch (e: any) {
+      alert(e?.message ?? "Export failed");
+    }
   };
 
   const startCorrection = (r: AttendanceRow) => {
