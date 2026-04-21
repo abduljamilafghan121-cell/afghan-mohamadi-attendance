@@ -119,44 +119,66 @@ export default function NewOrderPage() {
 
             <div>
               <label className="mb-1 block text-sm font-medium text-zinc-700">Items</label>
-              <div className="space-y-2">
-                {lines.map((l, i) => {
-                  const p = productMap.get(l.productId);
-                  const lineTotal = p ? p.price * (l.quantity || 0) : 0;
-                  return (
-                    <div key={i} className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 p-2">
-                      <div className="min-w-[160px] flex-1">
-                        <Combobox
-                          options={products.map((pp) => ({
-                            id: pp.id,
-                            label: pp.name,
-                            hint: pp.price.toFixed(2),
-                          }))}
-                          value={l.productId}
-                          onChange={(id) => updateLine(i, { productId: id })}
-                          placeholder="Search products…"
-                        />
-                      </div>
-                      <Input
-                        type="number"
-                        min={1}
-                        className="h-10 w-20"
-                        value={l.quantity}
-                        onChange={(e) => updateLine(i, { quantity: parseInt(e.target.value, 10) || 0 })}
-                      />
-                      <div className="w-24 text-right text-sm font-medium text-zinc-700">
-                        {lineTotal.toFixed(2)}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeLine(i)}
-                        className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  );
-                })}
+              <div className="overflow-x-auto rounded-xl border border-zinc-200">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500">
+                    <tr>
+                      <th className="px-2 py-2 font-medium">Product</th>
+                      <th className="px-2 py-2 font-medium">Qty</th>
+                      <th className="px-2 py-2 text-right font-medium">Price</th>
+                      <th className="px-2 py-2 text-right font-medium">Total</th>
+                      <th className="px-2 py-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {lines.map((l, i) => {
+                      const p = productMap.get(l.productId);
+                      const lineTotal = p ? p.price * (l.quantity || 0) : 0;
+                      return (
+                        <tr key={i} className="align-middle">
+                          <td className="px-2 py-2 min-w-[180px]">
+                            <Combobox
+                              options={products.map((pp) => ({
+                                id: pp.id,
+                                label: pp.name,
+                                hint: pp.price.toFixed(2),
+                              }))}
+                              value={l.productId}
+                              onChange={(id) => updateLine(i, { productId: id })}
+                              placeholder="Search products…"
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <Input
+                              type="number"
+                              min={1}
+                              className="h-10 w-20"
+                              value={l.quantity}
+                              onChange={(e) => updateLine(i, { quantity: parseInt(e.target.value, 10) || 0 })}
+                            />
+                          </td>
+                          <td className="px-2 py-2 text-right text-zinc-600">
+                            {p ? p.price.toFixed(2) : "—"}
+                          </td>
+                          <td className="px-2 py-2 text-right font-medium text-zinc-800">
+                            {lineTotal.toFixed(2)}
+                          </td>
+                          <td className="px-2 py-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => removeLine(i)}
+                              className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50"
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-2">
                 <Button variant="secondary" type="button" onClick={addLine}>
                   + Add item
                 </Button>

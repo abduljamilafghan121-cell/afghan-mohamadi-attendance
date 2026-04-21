@@ -258,81 +258,80 @@ export default function AddVisitPage() {
                   Optional. Record which products you pitched on this visit.
                 </p>
               ) : (
-                <div className="space-y-2">
-                  {productLines.map((l, i) => {
-                    const p = productMap.get(l.productId);
-                    return (
-                      <div
-                        key={i}
-                        className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3"
-                      >
-                        <div className="flex items-start gap-2">
-                          <div className="min-w-[160px] flex-1">
-                            <Combobox
-                              options={productOptions}
-                              value={l.productId}
-                              onChange={(id) => updateProductLine(i, { productId: id })}
-                              placeholder="Search products…"
-                            />
-                            {p && (
-                              <p className="mt-1 text-[11px] text-zinc-500">
-                                List price: {p.price.toFixed(2)}
-                              </p>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeProductLine(i)}
-                            className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="mb-0.5 block text-[11px] text-zinc-500">
-                              Offered price
-                            </label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min={0}
-                              placeholder={p ? p.price.toFixed(2) : "0.00"}
-                              value={l.offeredPrice}
-                              onChange={(e) =>
-                                updateProductLine(i, { offeredPrice: e.target.value })
-                              }
-                            />
-                          </div>
-                          <div>
-                            <label className="mb-0.5 block text-[11px] text-zinc-500">
-                              Interest level
-                            </label>
-                            <Input
-                              placeholder="High / Medium / Low"
-                              value={l.interest}
-                              onChange={(e) =>
-                                updateProductLine(i, { interest: e.target.value })
-                              }
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="mb-0.5 block text-[11px] text-zinc-500">
-                            Discussion / details
-                          </label>
-                          <Textarea
-                            rows={2}
-                            placeholder="What was discussed about this product…"
-                            value={l.discussion}
-                            onChange={(e) =>
-                              updateProductLine(i, { discussion: e.target.value })
-                            }
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="overflow-x-auto rounded-xl border border-zinc-200">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500">
+                      <tr>
+                        <th className="px-2 py-2 font-medium">Product</th>
+                        <th className="px-2 py-2 font-medium">Offered price</th>
+                        <th className="px-2 py-2 font-medium">Interest</th>
+                        <th className="px-2 py-2 font-medium">Discussion</th>
+                        <th className="px-2 py-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {productLines.map((l, i) => {
+                        const p = productMap.get(l.productId);
+                        return (
+                          <tr key={i} className="align-top">
+                            <td className="px-2 py-2 min-w-[180px]">
+                              <Combobox
+                                options={productOptions}
+                                value={l.productId}
+                                onChange={(id) => updateProductLine(i, { productId: id })}
+                                placeholder="Search products…"
+                              />
+                              {p && (
+                                <p className="mt-1 text-[11px] text-zinc-500">
+                                  List: {p.price.toFixed(2)}
+                                </p>
+                              )}
+                            </td>
+                            <td className="px-2 py-2 min-w-[110px]">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                placeholder={p ? p.price.toFixed(2) : "0.00"}
+                                value={l.offeredPrice}
+                                onChange={(e) =>
+                                  updateProductLine(i, { offeredPrice: e.target.value })
+                                }
+                              />
+                            </td>
+                            <td className="px-2 py-2 min-w-[130px]">
+                              <Input
+                                placeholder="High / Medium / Low"
+                                value={l.interest}
+                                onChange={(e) =>
+                                  updateProductLine(i, { interest: e.target.value })
+                                }
+                              />
+                            </td>
+                            <td className="px-2 py-2 min-w-[200px]">
+                              <Textarea
+                                rows={2}
+                                placeholder="What was discussed…"
+                                value={l.discussion}
+                                onChange={(e) =>
+                                  updateProductLine(i, { discussion: e.target.value })
+                                }
+                              />
+                            </td>
+                            <td className="px-2 py-2 text-right">
+                              <button
+                                type="button"
+                                onClick={() => removeProductLine(i)}
+                                className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50"
+                              >
+                                ✕
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
