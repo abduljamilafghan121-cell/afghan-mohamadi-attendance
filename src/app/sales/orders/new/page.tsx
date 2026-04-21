@@ -62,7 +62,7 @@ export default function NewOrderPage() {
     setError(null);
     setSuccess(null);
     if (!shopId) {
-      setError("Please select a shop before submitting");
+      setError("Please select a customer before submitting");
       return;
     }
     const validLines = lines.filter((l) => l.productId && l.quantity > 0);
@@ -103,16 +103,16 @@ export default function NewOrderPage() {
         <Card>
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700">Shop *</label>
+              <label className="mb-1 block text-sm font-medium text-zinc-700">Customer *</label>
               <Combobox
                 options={shops.map((s) => ({ id: s.id, label: s.name }))}
                 value={shopId}
                 onChange={setShopId}
-                placeholder="Search shops…"
+                placeholder="Search customers…"
               />
               {shops.length === 0 && (
                 <p className="mt-1 text-xs text-zinc-500">
-                  No shops yet. <Link href="/sales/visits/new" className="underline">Add one via Add Visit</Link>.
+                  No customers yet. <Link href="/sales/visits/new" className="underline">Add one via Add Visit</Link>.
                 </p>
               )}
             </div>

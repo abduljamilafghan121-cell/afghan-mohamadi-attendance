@@ -40,7 +40,8 @@ export default function AddCollectionPage() {
     setError(null);
     setSuccess(null);
     const amt = parseFloat(amount);
-    if (!customerName.trim()) return setError("Customer name is required");
+    if (!shopId) return setError("Please select a customer");
+    if (!customerName.trim()) return setError("Received from is required");
     if (!amt || amt <= 0) return setError("Enter a valid amount");
     setBusy(true);
     try {
@@ -76,17 +77,21 @@ export default function AddCollectionPage() {
         <Card>
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700">Customer Name *</label>
-              <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700">Linked Shop (optional)</label>
+              <label className="mb-1 block text-sm font-medium text-zinc-700">Customer *</label>
               <Combobox
                 options={shops.map((s) => ({ id: s.id, label: s.name }))}
                 value={shopId}
                 onChange={setShopId}
-                placeholder="Search shops…"
+                placeholder="Search customers…"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-zinc-700">Received From *</label>
+              <Input
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Person who handed over the money"
               />
             </div>
 

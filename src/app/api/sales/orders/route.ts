@@ -24,7 +24,7 @@ export async function GET(req: Request) {
 }
 
 const CreateSchema = z.object({
-  shopId: z.string().min(1, "Shop is required"),
+  shopId: z.string().min(1, "Customer is required"),
   paymentType: z.enum(["cash", "credit"]).default("cash"),
   notes: z.string().max(2000).optional().nullable(),
   items: z
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
   }
 
   const shop = await prisma.shop.findUnique({ where: { id: body.data.shopId } });
-  if (!shop) return NextResponse.json({ error: "Shop not found" }, { status: 404 });
+  if (!shop) return NextResponse.json({ error: "Customer not found" }, { status: 404 });
 
   const productIds = body.data.items.map((i) => i.productId);
   const products = await prisma.product.findMany({ where: { id: { in: productIds } } });

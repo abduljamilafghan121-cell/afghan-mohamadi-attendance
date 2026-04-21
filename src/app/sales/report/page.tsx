@@ -109,14 +109,14 @@ export default function MyReportPage() {
               <Stat label="Collections" value={summary.totalCollections.toFixed(2)} />
               <Stat label="Cash Orders" value={summary.cashOrders.toFixed(2)} />
               <Stat label="Credit Orders" value={summary.creditOrders.toFixed(2)} />
-              <Stat label="Shops Visited" value={summary.shopsCount} />
+              <Stat label="Customers Visited" value={summary.shopsCount} />
             </div>
           </Card>
         )}
 
-        <Card title={`Shops visited (${shops.length})`}>
+        <Card title={`Customers visited (${shops.length})`}>
           {shops.length === 0 ? (
-            <p className="text-sm text-zinc-500">No shops visited.</p>
+            <p className="text-sm text-zinc-500">No customers visited.</p>
           ) : (
             <ul className="divide-y divide-zinc-100 text-sm">
               {shops.map((s) => (

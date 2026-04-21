@@ -47,7 +47,7 @@ export default function AddVisitPage() {
       const res = await apiFetch<{ shops: Shop[] }>("/api/sales/shops");
       setShops(res.shops);
     } catch (e: any) {
-      setError(e?.message ?? "Failed to load shops");
+      setError(e?.message ?? "Failed to load customers");
     }
   };
 
@@ -75,7 +75,7 @@ export default function AddVisitPage() {
 
   const createShop = async () => {
     if (!newShopName.trim()) {
-      setError("Shop name is required");
+      setError("Customer name is required");
       return;
     }
     setBusy(true);
@@ -99,7 +99,7 @@ export default function AddVisitPage() {
       setNewShopPhone("");
       setCustomerType("new_customer");
     } catch (e: any) {
-      setError(e?.message ?? "Failed to create shop");
+      setError(e?.message ?? "Failed to create customer");
     } finally {
       setBusy(false);
     }
@@ -116,7 +116,7 @@ export default function AddVisitPage() {
     setError(null);
     setSuccess(null);
     if (!shopId) {
-      setError("Please select a shop");
+      setError("Please select a customer");
       return;
     }
     const validProducts = productLines.filter((p) => p.productId);
@@ -176,7 +176,7 @@ export default function AddVisitPage() {
         <Card>
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700">Shop *</label>
+              <label className="mb-1 block text-sm font-medium text-zinc-700">Customer *</label>
               {!showNewShop ? (
                 <div className="flex gap-2">
                   <div className="flex-1">
@@ -184,7 +184,7 @@ export default function AddVisitPage() {
                       options={shopOptions}
                       value={shopId}
                       onChange={setShopId}
-                      placeholder="Search shops…"
+                      placeholder="Search customers…"
                     />
                   </div>
                   <Button variant="secondary" type="button" onClick={() => setShowNewShop(true)}>
@@ -194,7 +194,7 @@ export default function AddVisitPage() {
               ) : (
                 <div className="space-y-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
                   <Input
-                    placeholder="Shop name *"
+                    placeholder="Customer name *"
                     value={newShopName}
                     onChange={(e) => setNewShopName(e.target.value)}
                   />
@@ -210,7 +210,7 @@ export default function AddVisitPage() {
                   />
                   <div className="flex gap-2">
                     <Button onClick={createShop} disabled={busy}>
-                      Save shop
+                      Save customer
                     </Button>
                     <Button variant="secondary" onClick={() => setShowNewShop(false)} type="button">
                       Cancel

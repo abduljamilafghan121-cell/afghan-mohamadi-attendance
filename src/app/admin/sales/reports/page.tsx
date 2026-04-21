@@ -126,7 +126,7 @@ export default function AdminSalesReportsPage() {
   }, [token]);
 
   const exportOrdersCsv = async () => {
-    const header = ["Date", "Salesman", "Shop", "Total", "Payment", "Items"].join(",");
+    const header = ["Date", "Salesman", "Customer", "Total", "Payment", "Items"].join(",");
     const rows = orders.map((o) =>
       [
         new Date(o.createdAt).toISOString(),
@@ -143,7 +143,7 @@ export default function AdminSalesReportsPage() {
   };
 
   const exportPaymentsCsv = async () => {
-    const header = ["Date", "Salesman", "Customer", "Shop", "Amount", "Method"].join(",");
+    const header = ["Date", "Salesman", "Received From", "Customer", "Amount", "Method"].join(",");
     const rows = payments.map((p) =>
       [
         new Date(p.createdAt).toISOString(),
@@ -160,7 +160,7 @@ export default function AdminSalesReportsPage() {
   };
 
   const exportVisitsCsv = async () => {
-    const header = ["Date", "Salesman", "Shop", "CustomerType", "Notes", "Products Discussed"].join(",");
+    const header = ["Date", "Salesman", "Customer", "CustomerType", "Notes", "Products Discussed"].join(",");
     const rows = visits.map((v) =>
       [
         new Date(v.visitDate).toISOString(),
@@ -246,7 +246,7 @@ export default function AdminSalesReportsPage() {
                 <tr className="text-left text-xs uppercase text-zinc-500">
                   <th className="py-2 pr-3">Date</th>
                   <th className="py-2 pr-3">Salesman</th>
-                  <th className="py-2 pr-3">Shop</th>
+                  <th className="py-2 pr-3">Customer</th>
                   <th className="py-2 pr-3">Payment</th>
                   <th className="py-2 pr-3 text-right">Total</th>
                 </tr>
@@ -278,8 +278,8 @@ export default function AdminSalesReportsPage() {
                 <tr className="text-left text-xs uppercase text-zinc-500">
                   <th className="py-2 pr-3">Date</th>
                   <th className="py-2 pr-3">Salesman</th>
+                  <th className="py-2 pr-3">Received From</th>
                   <th className="py-2 pr-3">Customer</th>
-                  <th className="py-2 pr-3">Shop</th>
                   <th className="py-2 pr-3">Method</th>
                   <th className="py-2 pr-3 text-right">Amount</th>
                 </tr>
@@ -312,7 +312,7 @@ export default function AdminSalesReportsPage() {
                 <tr className="text-left text-xs uppercase text-zinc-500">
                   <th className="py-2 pr-3">Date</th>
                   <th className="py-2 pr-3">Salesman</th>
-                  <th className="py-2 pr-3">Shop</th>
+                  <th className="py-2 pr-3">Customer</th>
                   <th className="py-2 pr-3">Type</th>
                   <th className="py-2 pr-3">Notes</th>
                   <th className="py-2 pr-3">Products discussed</th>

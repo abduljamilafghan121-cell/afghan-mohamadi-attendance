@@ -52,7 +52,7 @@ export async function POST(req: Request) {
   }
 
   const shop = await prisma.shop.findUnique({ where: { id: body.data.shopId } });
-  if (!shop) return NextResponse.json({ error: "Shop not found" }, { status: 404 });
+  if (!shop) return NextResponse.json({ error: "Customer not found" }, { status: 404 });
 
   let visitProductsData: { productId: string; productName: string; offeredPrice: number | null; discussion: string | null; interest: string | null }[] = [];
   if (body.data.products && body.data.products.length > 0) {

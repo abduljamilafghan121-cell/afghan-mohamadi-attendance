@@ -19,7 +19,7 @@ type Summary = {
 };
 
 const tiles = [
-  { href: "/sales/visits/new", label: "Add Visit", desc: "Log a shop visit", color: "bg-blue-50 border-blue-200 text-blue-900" },
+  { href: "/sales/visits/new", label: "Add Visit", desc: "Log a customer visit", color: "bg-blue-50 border-blue-200 text-blue-900" },
   { href: "/sales/orders/new", label: "New Order", desc: "Place a customer order", color: "bg-emerald-50 border-emerald-200 text-emerald-900" },
   { href: "/sales/payments/new", label: "Add Collection", desc: "Record a payment received", color: "bg-amber-50 border-amber-200 text-amber-900" },
   { href: "/sales/report", label: "My Daily Report", desc: "Today's totals & visits", color: "bg-violet-50 border-violet-200 text-violet-900" },
@@ -48,7 +48,7 @@ export default function SalesHomePage() {
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">Sales</h1>
           <p className="mt-1 text-sm text-zinc-600">
-            Track shop visits, orders, and customer collections.
+            Track customer visits, orders, and collections.
           </p>
         </div>
 
@@ -74,7 +74,7 @@ export default function SalesHomePage() {
               <Stat label="Collections" value={summary.totalCollections.toFixed(2)} />
               <Stat label="Cash" value={summary.cashOrders.toFixed(2)} />
               <Stat label="Credit" value={summary.creditOrders.toFixed(2)} />
-              <Stat label="Shops Visited" value={summary.shopsCount} />
+              <Stat label="Customers Visited" value={summary.shopsCount} />
             </div>
           ) : (
             <div className="text-sm text-zinc-500">Loading…</div>
