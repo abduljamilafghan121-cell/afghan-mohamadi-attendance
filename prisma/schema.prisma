@@ -95,6 +95,131 @@ model User {
   workdayOverrides  WorkdayOverride[] @relation("WorkdayOverrideUser")
   overridesCreated  WorkdayOverride[] @relation("WorkdayOverrideCreatedBy")
   leaveBalances     LeaveBalance[]
+
+  shopsCreated   Shop[]    @relation("ShopCreatedBy")
+  salesVisits    Visit[]   @relation("VisitUser")
+  salesOrders    Order[]   @relation("OrderUser")
+  salesPayments  Payment[] @relation("PaymentUser")
+}
+
+enum CustomerType {
+  new_customer
+  existing
+}
+
+enum SalesPaymentType {
+  cash
+  credit
+}
+
+enum CollectionMethod {
+  cash
+  bank_transfer
+  cheque
+  other
+}
+
+model Shop {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  phone     String?
+  gpsLat    Float?
+  gpsLng    Float?
+
+  createdById String?
+  createdBy   User?    @relation("ShopCreatedBy", fields: [createdById], references: [id])
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  visits   Visit[]
+  orders   Order[]
+  payments Payment[]
+
+  @@index([name])
+}
+
+model Product {
+  id        String   @id @default(cuid())
+  name      String
+  price     Float    @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderItems OrderItem[]
+
+  @@index([name])
+}
+
+model Visit {
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation("VisitUser", fields: [userId], references: [id])
+  shopId       String
+  shop         Shop         @relation(fields: [shopId], references: [id])
+  customerType CustomerType @default(existing)
+  notes        String?
+  gpsLat       Float?
+  gpsLng       Float?
+  visitDate    DateTime     @default(now())
+  createdAt    DateTime     @default(now())
+
+  @@index([userId, visitDate])
+  @@index([shopId])
+}
+
+model Order {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation("OrderUser", fields: [userId], references: [id])
+  shopId      String
+  shop        Shop             @relation(fields: [shopId], references: [id])
+  total       Float            @default(0)
+  paymentType SalesPaymentType @default(cash)
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  items    OrderItem[]
+  payments Payment[]
+
+  @@index([userId, createdAt])
+  @@index([shopId])
+}
+
+model OrderItem {
+  id          String  @id @default(cuid())
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product @relation(fields: [productId], references: [id])
+  productName String
+  unitPrice   Float
+  quantity    Int
+  lineTotal   Float
+
+  @@index([orderId])
+}
+
+model Payment {
+  id           String           @id @default(cuid())
+  userId       String
+  user         User             @relation("PaymentUser", fields: [userId], references: [id])
+  shopId       String?
+  shop         Shop?            @relation(fields: [shopId], references: [id])
+  customerName String
+  amount       Float
+  method       CollectionMethod @default(cash)
+  notes        String?
+  orderId      String?
+  order        Order?           @relation(fields: [orderId], references: [id])
+  createdAt    DateTime         @default(now())
+
+  @@index([userId, createdAt])
+  @@index([shopId])
 }
 
 model LeaveRequest {

@@ -437,6 +437,22 @@ export default function EmployeePage() {
 
   return (
     <AppShell>
+      <div className="mb-4 grid gap-3 sm:grid-cols-2">
+        <a
+          href="/employee"
+          className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm hover:bg-zinc-50"
+        >
+          <div className="text-base font-semibold text-zinc-900">Attendance</div>
+          <div className="mt-1 text-sm text-zinc-600">Check in/out and view your day.</div>
+        </a>
+        <a
+          href="/sales"
+          className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm hover:bg-emerald-100"
+        >
+          <div className="text-base font-semibold text-emerald-900">Sales</div>
+          <div className="mt-1 text-sm text-emerald-800">Visits, orders, and collections.</div>
+        </a>
+      </div>
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <Card title="Check In / Check Out">

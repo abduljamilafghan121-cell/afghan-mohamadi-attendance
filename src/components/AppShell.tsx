@@ -20,6 +20,9 @@ const adminLinks = [
   { href: "/admin/corrections", label: "Corrections" },
   { href: "/admin/holidays", label: "Holidays" },
   { href: "/admin/workday-overrides", label: "Overrides" },
+  { href: "/admin/sales/dashboard", label: "Sales Dashboard" },
+  { href: "/admin/sales/reports", label: "Sales Reports" },
+  { href: "/admin/sales/products", label: "Products" },
   { href: "/admin/org", label: "Organization" },
 ];
 
@@ -122,6 +125,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <NavLink href="/employee/history" active={pathname.startsWith("/employee/history")}>
               My History
             </NavLink>
+            <NavLink href="/sales" active={pathname.startsWith("/sales")}>
+              Sales
+            </NavLink>
             <NavLink href="/profile" active={pathname === "/profile"}>
               Profile
             </NavLink>
@@ -219,6 +225,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </MobileNavLink>
             <MobileNavLink href="/employee/history" active={pathname.startsWith("/employee/history")} onClick={() => setMenuOpen(false)}>
               My History
+            </MobileNavLink>
+            <MobileNavLink href="/sales" active={pathname.startsWith("/sales")} onClick={() => setMenuOpen(false)}>
+              Sales
             </MobileNavLink>
             <MobileNavLink href="/profile" active={pathname === "/profile"} onClick={() => setMenuOpen(false)}>
               Profile

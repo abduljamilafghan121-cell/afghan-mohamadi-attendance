@@ -1,0 +1,56 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "../../../../lib/prisma";
+import { requireUser } from "../../../../lib/apiAuth";
+
+export async function GET(req: Request) {
+  const auth = await requireUser(req);
+  if (!auth.ok) return auth.response;
+
+  const url = new URL(req.url);
+  const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50", 10) || 50, 200);
+
+  const visits = await prisma.visit.findMany({
+    where: { userId: auth.user.id },
+    orderBy: { visitDate: "desc" },
+    take: limit,
+    include: { shop: { select: { id: true, name: true } } },
+  });
+
+  return NextResponse.json({ visits });
+}
+
+const CreateSchema = z.object({
+  shopId: z.string().min(1),
+  customerType: z.enum(["new_customer", "existing"]).default("existing"),
+  notes: z.string().max(2000).optional().nullable(),
+  gpsLat: z.number().optional().nullable(),
+  gpsLng: z.number().optional().nullable(),
+});
+
+export async function POST(req: Request) {
+  const auth = await requireUser(req);
+  if (!auth.ok) return auth.response;
+
+  const body = CreateSchema.safeParse(await req.json().catch(() => null));
+  if (!body.success) {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  }
+
+  const shop = await prisma.shop.findUnique({ where: { id: body.data.shopId } });
+  if (!shop) return NextResponse.json({ error: "Shop not found" }, { status: 404 });
+
+  const visit = await prisma.visit.create({
+    data: {
+      userId: auth.user.id,
+      shopId: shop.id,
+      customerType: body.data.customerType,
+      notes: body.data.notes ?? null,
+      gpsLat: body.data.gpsLat ?? null,
+      gpsLng: body.data.gpsLng ?? null,
+    },
+    include: { shop: { select: { id: true, name: true } } },
+  });
+
+  return NextResponse.json({ visit });
+}
