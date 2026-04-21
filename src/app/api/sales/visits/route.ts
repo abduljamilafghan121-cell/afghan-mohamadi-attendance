@@ -14,7 +14,10 @@ export async function GET(req: Request) {
     where: { userId: auth.user.id },
     orderBy: { visitDate: "desc" },
     take: limit,
-    include: { shop: { select: { id: true, name: true } } },
+    include: {
+      shop: { select: { id: true, name: true } },
+      products: true,
+    },
   });
 
   return NextResponse.json({ visits });
@@ -26,6 +29,16 @@ const CreateSchema = z.object({
   notes: z.string().max(2000).optional().nullable(),
   gpsLat: z.number().optional().nullable(),
   gpsLng: z.number().optional().nullable(),
+  products: z
+    .array(
+      z.object({
+        productId: z.string().min(1),
+        quantity: z.number().int().positive().default(1),
+        interest: z.string().max(200).optional().nullable(),
+      }),
+    )
+    .optional()
+    .default([]),
 });
 
 export async function POST(req: Request) {
@@ -40,6 +53,26 @@ export async function POST(req: Request) {
   const shop = await prisma.shop.findUnique({ where: { id: body.data.shopId } });
   if (!shop) return NextResponse.json({ error: "Shop not found" }, { status: 404 });
 
+  let visitProductsData: { productId: string; productName: string; unitPrice: number; quantity: number; interest: string | null }[] = [];
+  if (body.data.products && body.data.products.length > 0) {
+    const ids = Array.from(new Set(body.data.products.map((p) => p.productId)));
+    const products = await prisma.product.findMany({ where: { id: { in: ids } } });
+    if (products.length !== ids.length) {
+      return NextResponse.json({ error: "One or more products not found" }, { status: 400 });
+    }
+    const map = new Map(products.map((p) => [p.id, p]));
+    visitProductsData = body.data.products.map((vp) => {
+      const p = map.get(vp.productId)!;
+      return {
+        productId: p.id,
+        productName: p.name,
+        unitPrice: p.price,
+        quantity: vp.quantity,
+        interest: vp.interest ?? null,
+      };
+    });
+  }
+
   const visit = await prisma.visit.create({
     data: {
       userId: auth.user.id,
@@ -48,8 +81,12 @@ export async function POST(req: Request) {
       notes: body.data.notes ?? null,
       gpsLat: body.data.gpsLat ?? null,
       gpsLng: body.data.gpsLng ?? null,
+      products: visitProductsData.length ? { create: visitProductsData } : undefined,
     },
-    include: { shop: { select: { id: true, name: true } } },
+    include: {
+      shop: { select: { id: true, name: true } },
+      products: true,
+    },
   });
 
   return NextResponse.json({ visit });

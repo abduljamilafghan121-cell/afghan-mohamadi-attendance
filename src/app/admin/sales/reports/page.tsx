@@ -7,6 +7,7 @@ import { AppShell } from "../../../../components/AppShell";
 import { Card } from "../../../../components/ui/Card";
 import { Button } from "../../../../components/ui/Button";
 import { Input } from "../../../../components/ui/Input";
+import { Combobox } from "../../../../components/ui/Combobox";
 import { apiFetch } from "../../../../lib/clientApi";
 import { getToken, parseJwt } from "../../../../lib/clientAuth";
 import { downloadTextFile } from "../../../../lib/exportUtils";
@@ -188,18 +189,12 @@ export default function AdminSalesReportsPage() {
             </div>
             <div>
               <label className="mb-1 block text-xs text-zinc-500">Salesman</label>
-              <select
-                className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm"
+              <Combobox
+                options={users.map((u) => ({ id: u.id, label: u.name }))}
                 value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-              >
-                <option value="">All</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setUserId}
+                placeholder="All salesmen"
+              />
             </div>
             <div className="flex items-end">
               <Button onClick={load} disabled={loading} className="w-full">

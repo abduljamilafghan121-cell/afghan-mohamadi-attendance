@@ -51,6 +51,7 @@ export async function GET(req: Request) {
       include: {
         user: { select: { id: true, name: true } },
         shop: { select: { id: true, name: true } },
+        products: true,
       },
     }),
   ]);

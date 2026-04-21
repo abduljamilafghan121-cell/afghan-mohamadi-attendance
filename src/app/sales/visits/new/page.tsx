@@ -8,16 +8,20 @@ import { Card } from "../../../../components/ui/Card";
 import { Button } from "../../../../components/ui/Button";
 import { Input } from "../../../../components/ui/Input";
 import { Textarea } from "../../../../components/ui/Textarea";
+import { Combobox } from "../../../../components/ui/Combobox";
 import { apiFetch } from "../../../../lib/clientApi";
 import { getToken } from "../../../../lib/clientAuth";
 
 type Shop = { id: string; name: string; address: string | null; phone: string | null };
+type Product = { id: string; name: string; price: number };
+type ProductLine = { productId: string; quantity: number; interest: string };
 
 export default function AddVisitPage() {
   const router = useRouter();
   const token = typeof window !== "undefined" ? getToken() : null;
 
   const [shops, setShops] = useState<Shop[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [shopId, setShopId] = useState("");
   const [showNewShop, setShowNewShop] = useState(false);
   const [newShopName, setNewShopName] = useState("");
@@ -27,6 +31,9 @@ export default function AddVisitPage() {
   const [customerType, setCustomerType] = useState<"new_customer" | "existing">("existing");
   const [notes, setNotes] = useState("");
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
+
+  const [productLines, setProductLines] = useState<ProductLine[]>([]);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -45,8 +52,14 @@ export default function AddVisitPage() {
   };
 
   useEffect(() => {
-    if (token) loadShops();
+    if (!token) return;
+    loadShops();
+    apiFetch<{ products: Product[] }>("/api/sales/products")
+      .then((r) => setProducts(r.products))
+      .catch(() => {});
   }, [token]);
+
+  const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
   const captureGps = () => {
     if (!navigator.geolocation) {
@@ -92,6 +105,13 @@ export default function AddVisitPage() {
     }
   };
 
+  const addProductLine = () =>
+    setProductLines((arr) => [...arr, { productId: "", quantity: 1, interest: "" }]);
+  const updateProductLine = (i: number, patch: Partial<ProductLine>) =>
+    setProductLines((arr) => arr.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  const removeProductLine = (i: number) =>
+    setProductLines((arr) => arr.filter((_, idx) => idx !== i));
+
   const submit = async () => {
     setError(null);
     setSuccess(null);
@@ -99,6 +119,7 @@ export default function AddVisitPage() {
       setError("Please select a shop");
       return;
     }
+    const validProducts = productLines.filter((p) => p.productId && p.quantity > 0);
     setBusy(true);
     try {
       await apiFetch("/api/sales/visits", {
@@ -109,10 +130,16 @@ export default function AddVisitPage() {
           notes: notes || null,
           gpsLat: gps?.lat ?? null,
           gpsLng: gps?.lng ?? null,
+          products: validProducts.map((p) => ({
+            productId: p.productId,
+            quantity: Number(p.quantity),
+            interest: p.interest || null,
+          })),
         }),
       });
       setSuccess("Visit logged successfully");
       setNotes("");
+      setProductLines([]);
       setTimeout(() => router.push("/sales"), 800);
     } catch (e: any) {
       setError(e?.message ?? "Failed to save visit");
@@ -120,6 +147,20 @@ export default function AddVisitPage() {
       setBusy(false);
     }
   };
+
+  const shopOptions = useMemo(
+    () =>
+      shops.map((s) => ({
+        id: s.id,
+        label: s.name,
+        hint: s.address ?? s.phone ?? undefined,
+      })),
+    [shops],
+  );
+  const productOptions = useMemo(
+    () => products.map((p) => ({ id: p.id, label: p.name, hint: p.price.toFixed(2) })),
+    [products],
+  );
 
   return (
     <AppShell>
@@ -134,21 +175,17 @@ export default function AddVisitPage() {
         <Card>
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700">Shop</label>
+              <label className="mb-1 block text-sm font-medium text-zinc-700">Shop *</label>
               {!showNewShop ? (
                 <div className="flex gap-2">
-                  <select
-                    className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm"
-                    value={shopId}
-                    onChange={(e) => setShopId(e.target.value)}
-                  >
-                    <option value="">— Select a shop —</option>
-                    {shops.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex-1">
+                    <Combobox
+                      options={shopOptions}
+                      value={shopId}
+                      onChange={setShopId}
+                      placeholder="Search shops…"
+                    />
+                  </div>
                   <Button variant="secondary" type="button" onClick={() => setShowNewShop(true)}>
                     + New
                   </Button>
@@ -200,6 +237,74 @@ export default function AddVisitPage() {
                   New
                 </Button>
               </div>
+            </div>
+
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="text-sm font-medium text-zinc-700">
+                  Products discussed / offered
+                </label>
+                <button
+                  type="button"
+                  onClick={addProductLine}
+                  className="text-xs text-zinc-600 underline"
+                >
+                  + Add product
+                </button>
+              </div>
+              {productLines.length === 0 ? (
+                <p className="text-xs text-zinc-500">
+                  Optional. Record which products you pitched on this visit.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {productLines.map((l, i) => {
+                    const p = productMap.get(l.productId);
+                    const lineTotal = p ? p.price * (l.quantity || 0) : 0;
+                    return (
+                      <div
+                        key={i}
+                        className="space-y-2 rounded-xl border border-zinc-200 bg-white p-2"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="min-w-[160px] flex-1">
+                            <Combobox
+                              options={productOptions}
+                              value={l.productId}
+                              onChange={(id) => updateProductLine(i, { productId: id })}
+                              placeholder="Search products…"
+                            />
+                          </div>
+                          <Input
+                            type="number"
+                            min={1}
+                            className="h-10 w-20"
+                            value={l.quantity}
+                            onChange={(e) =>
+                              updateProductLine(i, { quantity: parseInt(e.target.value, 10) || 0 })
+                            }
+                          />
+                          <div className="w-24 text-right text-sm font-medium text-zinc-700">
+                            {lineTotal.toFixed(2)}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeProductLine(i)}
+                            className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        <Input
+                          placeholder="Interest level / notes (optional)"
+                          value={l.interest}
+                          onChange={(e) => updateProductLine(i, { interest: e.target.value })}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div>

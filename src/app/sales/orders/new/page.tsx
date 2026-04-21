@@ -8,6 +8,7 @@ import { Card } from "../../../../components/ui/Card";
 import { Button } from "../../../../components/ui/Button";
 import { Input } from "../../../../components/ui/Input";
 import { Textarea } from "../../../../components/ui/Textarea";
+import { Combobox } from "../../../../components/ui/Combobox";
 import { apiFetch } from "../../../../lib/clientApi";
 import { getToken } from "../../../../lib/clientAuth";
 
@@ -103,18 +104,12 @@ export default function NewOrderPage() {
           <div className="space-y-4">
             <div>
               <label className="mb-1 block text-sm font-medium text-zinc-700">Shop *</label>
-              <select
-                className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm"
+              <Combobox
+                options={shops.map((s) => ({ id: s.id, label: s.name }))}
                 value={shopId}
-                onChange={(e) => setShopId(e.target.value)}
-              >
-                <option value="">— Select a shop —</option>
-                {shops.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setShopId}
+                placeholder="Search shops…"
+              />
               {shops.length === 0 && (
                 <p className="mt-1 text-xs text-zinc-500">
                   No shops yet. <Link href="/sales/visits/new" className="underline">Add one via Add Visit</Link>.
@@ -130,18 +125,18 @@ export default function NewOrderPage() {
                   const lineTotal = p ? p.price * (l.quantity || 0) : 0;
                   return (
                     <div key={i} className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 p-2">
-                      <select
-                        className="h-10 min-w-[160px] flex-1 rounded-lg border border-zinc-200 bg-white px-2 text-sm"
-                        value={l.productId}
-                        onChange={(e) => updateLine(i, { productId: e.target.value })}
-                      >
-                        <option value="">— Product —</option>
-                        {products.map((pp) => (
-                          <option key={pp.id} value={pp.id}>
-                            {pp.name} — {pp.price.toFixed(2)}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="min-w-[160px] flex-1">
+                        <Combobox
+                          options={products.map((pp) => ({
+                            id: pp.id,
+                            label: pp.name,
+                            hint: pp.price.toFixed(2),
+                          }))}
+                          value={l.productId}
+                          onChange={(id) => updateLine(i, { productId: id })}
+                          placeholder="Search products…"
+                        />
+                      </div>
                       <Input
                         type="number"
                         min={1}

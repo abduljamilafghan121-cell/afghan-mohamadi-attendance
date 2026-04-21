@@ -23,7 +23,10 @@ export async function GET(req: Request) {
     prisma.visit.findMany({
       where: { userId: auth.user.id, visitDate: { gte: start, lt: end } },
       orderBy: { visitDate: "asc" },
-      include: { shop: { select: { id: true, name: true } } },
+      include: {
+        shop: { select: { id: true, name: true } },
+        products: true,
+      },
     }),
     prisma.order.findMany({
       where: { userId: auth.user.id, createdAt: { gte: start, lt: end } },

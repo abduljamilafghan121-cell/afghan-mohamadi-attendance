@@ -8,6 +8,7 @@ import { Card } from "../../../../components/ui/Card";
 import { Button } from "../../../../components/ui/Button";
 import { Input } from "../../../../components/ui/Input";
 import { Textarea } from "../../../../components/ui/Textarea";
+import { Combobox } from "../../../../components/ui/Combobox";
 import { apiFetch } from "../../../../lib/clientApi";
 import { getToken } from "../../../../lib/clientAuth";
 
@@ -81,18 +82,12 @@ export default function AddCollectionPage() {
 
             <div>
               <label className="mb-1 block text-sm font-medium text-zinc-700">Linked Shop (optional)</label>
-              <select
-                className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm"
+              <Combobox
+                options={shops.map((s) => ({ id: s.id, label: s.name }))}
                 value={shopId}
-                onChange={(e) => setShopId(e.target.value)}
-              >
-                <option value="">— None —</option>
-                {shops.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setShopId}
+                placeholder="Search shops…"
+              />
             </div>
 
             <div>
