@@ -180,10 +180,10 @@ model VisitProduct {
   visit       Visit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
   productId   String
   product     Product @relation(fields: [productId], references: [id])
-  productName String
-  unitPrice   Float
-  quantity    Int     @default(1)
-  interest    String?
+  productName  String
+  offeredPrice Float?
+  discussion   String?
+  interest     String?
 
   @@unique([visitId, productId])
   @@index([visitId])

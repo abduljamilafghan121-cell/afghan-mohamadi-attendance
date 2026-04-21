@@ -14,7 +14,7 @@ import { getToken } from "../../../../lib/clientAuth";
 
 type Shop = { id: string; name: string; address: string | null; phone: string | null };
 type Product = { id: string; name: string; price: number };
-type ProductLine = { productId: string; quantity: number; interest: string };
+type ProductLine = { productId: string; offeredPrice: string; discussion: string; interest: string };
 
 export default function AddVisitPage() {
   const router = useRouter();
@@ -106,7 +106,7 @@ export default function AddVisitPage() {
   };
 
   const addProductLine = () =>
-    setProductLines((arr) => [...arr, { productId: "", quantity: 1, interest: "" }]);
+    setProductLines((arr) => [...arr, { productId: "", offeredPrice: "", discussion: "", interest: "" }]);
   const updateProductLine = (i: number, patch: Partial<ProductLine>) =>
     setProductLines((arr) => arr.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const removeProductLine = (i: number) =>
@@ -119,7 +119,7 @@ export default function AddVisitPage() {
       setError("Please select a shop");
       return;
     }
-    const validProducts = productLines.filter((p) => p.productId && p.quantity > 0);
+    const validProducts = productLines.filter((p) => p.productId);
     setBusy(true);
     try {
       await apiFetch("/api/sales/visits", {
@@ -132,7 +132,8 @@ export default function AddVisitPage() {
           gpsLng: gps?.lng ?? null,
           products: validProducts.map((p) => ({
             productId: p.productId,
-            quantity: Number(p.quantity),
+            offeredPrice: p.offeredPrice ? Number(p.offeredPrice) : null,
+            discussion: p.discussion || null,
             interest: p.interest || null,
           })),
         }),
@@ -260,13 +261,12 @@ export default function AddVisitPage() {
                 <div className="space-y-2">
                   {productLines.map((l, i) => {
                     const p = productMap.get(l.productId);
-                    const lineTotal = p ? p.price * (l.quantity || 0) : 0;
                     return (
                       <div
                         key={i}
-                        className="space-y-2 rounded-xl border border-zinc-200 bg-white p-2"
+                        className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3"
                       >
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-start gap-2">
                           <div className="min-w-[160px] flex-1">
                             <Combobox
                               options={productOptions}
@@ -274,18 +274,11 @@ export default function AddVisitPage() {
                               onChange={(id) => updateProductLine(i, { productId: id })}
                               placeholder="Search products…"
                             />
-                          </div>
-                          <Input
-                            type="number"
-                            min={1}
-                            className="h-10 w-20"
-                            value={l.quantity}
-                            onChange={(e) =>
-                              updateProductLine(i, { quantity: parseInt(e.target.value, 10) || 0 })
-                            }
-                          />
-                          <div className="w-24 text-right text-sm font-medium text-zinc-700">
-                            {lineTotal.toFixed(2)}
+                            {p && (
+                              <p className="mt-1 text-[11px] text-zinc-500">
+                                List price: {p.price.toFixed(2)}
+                              </p>
+                            )}
                           </div>
                           <button
                             type="button"
@@ -295,11 +288,48 @@ export default function AddVisitPage() {
                             ✕
                           </button>
                         </div>
-                        <Input
-                          placeholder="Interest level / notes (optional)"
-                          value={l.interest}
-                          onChange={(e) => updateProductLine(i, { interest: e.target.value })}
-                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="mb-0.5 block text-[11px] text-zinc-500">
+                              Offered price
+                            </label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min={0}
+                              placeholder={p ? p.price.toFixed(2) : "0.00"}
+                              value={l.offeredPrice}
+                              onChange={(e) =>
+                                updateProductLine(i, { offeredPrice: e.target.value })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-0.5 block text-[11px] text-zinc-500">
+                              Interest level
+                            </label>
+                            <Input
+                              placeholder="High / Medium / Low"
+                              value={l.interest}
+                              onChange={(e) =>
+                                updateProductLine(i, { interest: e.target.value })
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="mb-0.5 block text-[11px] text-zinc-500">
+                            Discussion / details
+                          </label>
+                          <Textarea
+                            rows={2}
+                            placeholder="What was discussed about this product…"
+                            value={l.discussion}
+                            onChange={(e) =>
+                              updateProductLine(i, { discussion: e.target.value })
+                            }
+                          />
+                        </div>
                       </div>
                     );
                   })}

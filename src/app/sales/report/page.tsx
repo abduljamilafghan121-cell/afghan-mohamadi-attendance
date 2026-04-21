@@ -19,7 +19,7 @@ type Summary = {
   ordersCount: number;
   shopsCount: number;
 };
-type VisitProduct = { id: string; productName: string; quantity: number; unitPrice: number; interest: string | null };
+type VisitProduct = { id: string; productName: string; offeredPrice: number | null; discussion: string | null; interest: string | null };
 type Visit = { id: string; visitDate: string; customerType: string; notes: string | null; shop: { id: string; name: string }; products: VisitProduct[] };
 type OrderItem = { id: string; productName: string; quantity: number; unitPrice: number; lineTotal: number };
 type Order = { id: string; createdAt: string; total: number; paymentType: string; shop: { id: string; name: string }; items: OrderItem[] };
@@ -196,8 +196,10 @@ export default function MyReportPage() {
                     <ul className="mt-1 text-xs text-zinc-600">
                       {v.products.map((vp) => (
                         <li key={vp.id}>
-                          • {vp.productName} × {vp.quantity}
+                          • {vp.productName}
+                          {vp.offeredPrice != null ? ` @ ${vp.offeredPrice.toFixed(2)}` : ""}
                           {vp.interest ? ` — ${vp.interest}` : ""}
+                          {vp.discussion ? ` · ${vp.discussion}` : ""}
                         </li>
                       ))}
                     </ul>

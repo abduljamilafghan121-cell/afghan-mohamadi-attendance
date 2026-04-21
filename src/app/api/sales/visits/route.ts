@@ -33,7 +33,8 @@ const CreateSchema = z.object({
     .array(
       z.object({
         productId: z.string().min(1),
-        quantity: z.number().int().positive().default(1),
+        offeredPrice: z.number().nonnegative().optional().nullable(),
+        discussion: z.string().max(1000).optional().nullable(),
         interest: z.string().max(200).optional().nullable(),
       }),
     )
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
   const shop = await prisma.shop.findUnique({ where: { id: body.data.shopId } });
   if (!shop) return NextResponse.json({ error: "Shop not found" }, { status: 404 });
 
-  let visitProductsData: { productId: string; productName: string; unitPrice: number; quantity: number; interest: string | null }[] = [];
+  let visitProductsData: { productId: string; productName: string; offeredPrice: number | null; discussion: string | null; interest: string | null }[] = [];
   if (body.data.products && body.data.products.length > 0) {
     const ids = Array.from(new Set(body.data.products.map((p) => p.productId)));
     const products = await prisma.product.findMany({ where: { id: { in: ids } } });
@@ -66,8 +67,8 @@ export async function POST(req: Request) {
       return {
         productId: p.id,
         productName: p.name,
-        unitPrice: p.price,
-        quantity: vp.quantity,
+        offeredPrice: vp.offeredPrice ?? null,
+        discussion: vp.discussion ?? null,
         interest: vp.interest ?? null,
       };
     });
