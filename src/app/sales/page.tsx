@@ -22,6 +22,7 @@ const tiles = [
   { href: "/sales/visits/new", label: "Add Visit", desc: "Log a customer visit", color: "bg-blue-50 border-blue-200 text-blue-900" },
   { href: "/sales/orders/new", label: "New Order", desc: "Place a customer order", color: "bg-emerald-50 border-emerald-200 text-emerald-900" },
   { href: "/sales/payments/new", label: "Add Collection", desc: "Record a payment received", color: "bg-amber-50 border-amber-200 text-amber-900" },
+  { href: "/sales/customers", label: "Customers", desc: "Search & view full history", color: "bg-rose-50 border-rose-200 text-rose-900" },
   { href: "/sales/report", label: "My Daily Report", desc: "Today's totals & visits", color: "bg-violet-50 border-violet-200 text-violet-900" },
 ];
 

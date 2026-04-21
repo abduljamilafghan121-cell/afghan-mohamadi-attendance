@@ -29,10 +29,15 @@ with a full Sales / Order / Collection module.
 ### Sales (new)
 - Hub page: `/sales` (visible to every authenticated user).
 - Salesman pages:
-  - `/sales/visits/new` — Add Visit (shop selection + create-on-the-fly + GPS).
+  - `/sales/visits/new` — Add Visit (customer selection + create-on-the-fly + GPS).
   - `/sales/orders/new` — New Order (multi-line items, auto total, cash/credit).
-  - `/sales/payments/new` — Add Collection.
+  - `/sales/payments/new` — Add Collection (Customer required, Received From for payer).
+  - `/sales/customers` — searchable customer list.
+  - `/sales/customers/[id]` — full per-customer history (visits, orders, collections,
+    summary stats incl. outstanding credit). Admin can toggle "All salesmen" scope.
   - `/sales/report` — My Daily Report (per-date summary).
+- Note: DB tables remain `Shop` etc.; UI uses "Customer" label so the app fits
+  any business type (medical clinics, retail, etc.).
 - Admin pages:
   - `/admin/sales/dashboard` — Today's totals, top performers, per-employee rows.
   - `/admin/sales/reports` — Date + salesman filter, CSV export of orders /
@@ -45,6 +50,7 @@ with a full Sales / Order / Collection module.
   - `GET/POST /api/sales/orders`
   - `GET/POST /api/sales/payments`
   - `GET /api/sales/my-report?date=YYYY-MM-DD`
+  - `GET /api/sales/customers/[id]/history?scope=mine|all`
   - `GET /api/admin/sales/dashboard?date=...`
   - `GET /api/admin/sales/reports?from=...&to=...&userId=...`
   - `GET /api/admin/sales/users`
