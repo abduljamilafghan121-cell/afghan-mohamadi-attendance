@@ -39,6 +39,13 @@ type Payment = {
   user: { id: string; name: string };
   shop: { id: string; name: string } | null;
 };
+type VisitProduct = {
+  id: string;
+  productName: string;
+  offeredPrice: number | null;
+  discussion: string | null;
+  interest: string | null;
+};
 type Visit = {
   id: string;
   visitDate: string;
@@ -46,6 +53,7 @@ type Visit = {
   notes: string | null;
   user: { id: string; name: string };
   shop: { id: string; name: string };
+  products: VisitProduct[];
 };
 type U = { id: string; name: string };
 
@@ -152,7 +160,7 @@ export default function AdminSalesReportsPage() {
   };
 
   const exportVisitsCsv = async () => {
-    const header = ["Date", "Salesman", "Shop", "CustomerType", "Notes"].join(",");
+    const header = ["Date", "Salesman", "Shop", "CustomerType", "Notes", "Products Discussed"].join(",");
     const rows = visits.map((v) =>
       [
         new Date(v.visitDate).toISOString(),
@@ -160,6 +168,15 @@ export default function AdminSalesReportsPage() {
         v.shop.name,
         v.customerType,
         v.notes ?? "",
+        (v.products ?? [])
+          .map((p) => {
+            const parts = [p.productName];
+            if (p.offeredPrice != null) parts.push(`@${p.offeredPrice.toFixed(2)}`);
+            if (p.interest) parts.push(`interest:${p.interest}`);
+            if (p.discussion) parts.push(p.discussion);
+            return parts.join(" ");
+          })
+          .join(" | "),
       ]
         .map(csvEscape)
         .join(","),
@@ -298,16 +315,33 @@ export default function AdminSalesReportsPage() {
                   <th className="py-2 pr-3">Shop</th>
                   <th className="py-2 pr-3">Type</th>
                   <th className="py-2 pr-3">Notes</th>
+                  <th className="py-2 pr-3">Products discussed</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {visits.map((v) => (
-                  <tr key={v.id}>
+                  <tr key={v.id} className="align-top">
                     <td className="py-2 pr-3">{new Date(v.visitDate).toLocaleString()}</td>
                     <td className="py-2 pr-3">{v.user.name}</td>
                     <td className="py-2 pr-3">{v.shop.name}</td>
                     <td className="py-2 pr-3">{v.customerType === "new_customer" ? "New" : "Existing"}</td>
                     <td className="py-2 pr-3">{v.notes ?? ""}</td>
+                    <td className="py-2 pr-3">
+                      {v.products && v.products.length > 0 ? (
+                        <ul className="space-y-0.5 text-xs text-zinc-700">
+                          {v.products.map((p) => (
+                            <li key={p.id}>
+                              • {p.productName}
+                              {p.offeredPrice != null ? ` @ ${p.offeredPrice.toFixed(2)}` : ""}
+                              {p.interest ? ` — ${p.interest}` : ""}
+                              {p.discussion ? ` · ${p.discussion}` : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-xs text-zinc-400">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
