@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import { prisma } from "../../../../lib/prisma";
 import { assertRole, getBearerToken, verifyAccessToken } from "../../../../lib/auth";
 import { generateQrToken, hashQrToken, startOfDayInTimeZone, startOfDayUtc } from "../../../../lib/qr";
+import { notifyAll } from "../../../../lib/notify";
 
 const CreateDailyQrSchema = z.object({
   officeId: z.string().min(1),
@@ -69,6 +70,17 @@ export async function POST(req: Request) {
   });
 
   const qrDataUrl = await QRCode.toDataURL(qrPayload, { margin: 1, width: 320 });
+
+  const purposeLabel = dailyQr.purpose === "both" ? "Check-In & Check-Out" : dailyQr.purpose === "check_in" ? "Check-In" : "Check-Out";
+  await notifyAll(
+    {
+      type: "qr_generated",
+      title: `New ${purposeLabel} QR available`,
+      body: `${office.name} · valid ${validFrom.toLocaleString()} → ${validTo.toLocaleString()}`,
+      link: "/employee",
+    },
+    user.id,
+  );
 
   return NextResponse.json({
     dailyQr: {

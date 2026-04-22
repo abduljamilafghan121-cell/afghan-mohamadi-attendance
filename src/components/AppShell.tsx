@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { clearToken, getToken, parseJwt } from "../lib/clientAuth";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { NotificationBell } from "./NotificationBell";
 
 type Org = { title: string; logoUrl: string | null };
 
@@ -23,6 +24,7 @@ const adminLinks = [
   { href: "/admin/sales/dashboard", label: "Sales Dashboard" },
   { href: "/admin/sales/reports", label: "Sales Reports" },
   { href: "/admin/sales/products", label: "Products" },
+  { href: "/admin/notifications", label: "Send Announcement" },
   { href: "/admin/org", label: "Organization" },
 ];
 
@@ -182,6 +184,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             )}
 
+            <NotificationBell enabled={!!user} />
+
             {user ? (
               <button
                 onClick={onLogout}
@@ -196,26 +200,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </nav>
 
-          <button
-            className="md:hidden rounded-lg p-2 text-zinc-700 hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-100"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label="Toggle menu"
-          >
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              {menuOpen ? (
-                <>
-                  <line x1="4" y1="4" x2="18" y2="18" />
-                  <line x1="18" y1="4" x2="4" y2="18" />
-                </>
-              ) : (
-                <>
-                  <line x1="3" y1="6" x2="19" y2="6" />
-                  <line x1="3" y1="11" x2="19" y2="11" />
-                  <line x1="3" y1="16" x2="19" y2="16" />
-                </>
-              )}
-            </svg>
-          </button>
+          <div className="md:hidden flex items-center gap-1">
+            <NotificationBell enabled={!!user} />
+            <button
+              className="rounded-lg p-2 text-zinc-700 hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-100"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="Toggle menu"
+            >
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                {menuOpen ? (
+                  <>
+                    <line x1="4" y1="4" x2="18" y2="18" />
+                    <line x1="18" y1="4" x2="4" y2="18" />
+                  </>
+                ) : (
+                  <>
+                    <line x1="3" y1="6" x2="19" y2="6" />
+                    <line x1="3" y1="11" x2="19" y2="11" />
+                    <line x1="3" y1="16" x2="19" y2="16" />
+                  </>
+                )}
+              </svg>
+            </button>
+          </div>
         </div>
 
         {menuOpen && (

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../../lib/prisma";
 import { getBearerToken, verifyAccessToken } from "../../../lib/auth";
 import { startOfDayFromDateString } from "../../../lib/qr";
+import { notifyAdmins } from "../../../lib/notify";
 
 const CreateSchema = z.object({
   startDate: z.string().min(1),
@@ -84,6 +85,15 @@ export async function POST(req: Request) {
       leaveType: true,
       createdAt: true,
     },
+  });
+
+  const days = Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  const requester = await prisma.user.findUnique({ where: { id: authUser.id }, select: { name: true } });
+  await notifyAdmins({
+    type: "leave_submitted",
+    title: `New leave request from ${requester?.name ?? "an employee"}`,
+    body: `${parsed.data.leaveType ?? "annual"} · ${days} day${days === 1 ? "" : "s"} · ${parsed.data.startDate} → ${parsed.data.endDate}${parsed.data.reason ? ` · "${parsed.data.reason}"` : ""}`,
+    link: "/admin/leaves",
   });
 
   return NextResponse.json({ leave });

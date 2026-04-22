@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { assertRole, getBearerToken, verifyAccessToken } from "../../../../lib/auth";
+import { notifyUser } from "../../../../lib/notify";
 
 const DecideSchema = z.object({
   id: z.string().min(1),
@@ -127,5 +128,14 @@ export async function POST(req: Request) {
   }
 
   await prisma.$transaction(ops);
+
+  await notifyUser({
+    userId: corrReq.userId,
+    type: "correction_decided",
+    title: `Your attendance correction was ${parsed.data.status}`,
+    body: `${corrReq.requestType.replace("_", " ")} · ${corrReq.workDate.toISOString().slice(0, 10)}`,
+    link: "/employee/history",
+  });
+
   return NextResponse.json({ success: true });
 }

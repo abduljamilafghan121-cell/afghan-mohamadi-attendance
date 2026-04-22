@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../../lib/prisma";
 import { getBearerToken, verifyAccessToken } from "../../../lib/auth";
 import { startOfDayFromDateString } from "../../../lib/qr";
+import { notifyAdmins } from "../../../lib/notify";
 
 const CreateSchema = z.object({
   workDate: z.string().min(1),
@@ -92,6 +93,14 @@ export async function POST(req: Request) {
       status: true,
       createdAt: true,
     },
+  });
+
+  const requester = await prisma.user.findUnique({ where: { id: authUser.id }, select: { name: true } });
+  await notifyAdmins({
+    type: "correction_submitted",
+    title: `New correction request from ${requester?.name ?? "an employee"}`,
+    body: `${parsed.data.requestType.replace("_", " ")} · ${parsed.data.workDate}${parsed.data.reason ? ` · "${parsed.data.reason}"` : ""}`,
+    link: "/admin/corrections",
   });
 
   return NextResponse.json({ request });

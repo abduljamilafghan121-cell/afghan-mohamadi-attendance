@@ -4,6 +4,7 @@ import { prisma } from "../../../../lib/prisma";
 import { getBearerToken, verifyAccessToken } from "../../../../lib/auth";
 import { startOfDayInTimeZone } from "../../../../lib/qr";
 import { validateQrForAttendance } from "../../../../lib/qrValidate";
+import { notifyAdmins } from "../../../../lib/notify";
 import { isWithinRadius } from "../../../../lib/geo";
 import { isOffDay, calcLateMinutes, startOfDayUtcFromDate } from "../../../../lib/schedule";
 
@@ -133,6 +134,16 @@ export async function POST(req: Request) {
     where: { id: session.id },
     data: { checkInAt: now, isLateArrival, minutesLate, isOvertime: sessionIsOvertime },
   });
+
+  if (isLateArrival && minutesLate && minutesLate > 0) {
+    const employee = await prisma.user.findUnique({ where: { id: authUser.id }, select: { name: true } });
+    await notifyAdmins({
+      type: "late_check_in",
+      title: `Late check-in: ${employee?.name ?? "employee"}`,
+      body: `${minutesLate} min late at ${office.name} · ${now.toLocaleString()}`,
+      link: "/admin/attendance",
+    });
+  }
 
   return NextResponse.json({
     sessionId: session.id,

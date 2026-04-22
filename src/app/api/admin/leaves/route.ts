@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { assertRole, getBearerToken, verifyAccessToken } from "../../../../lib/auth";
+import { notifyUser } from "../../../../lib/notify";
 
 const QuerySchema = z.object({
   status: z.enum(["all", "pending", "approved", "rejected"]).optional(),
@@ -121,6 +122,14 @@ export async function POST(req: Request) {
       update: { usedDays: { decrement: days } },
     });
   }
+
+  await notifyUser({
+    userId: existing.userId,
+    type: "leave_decided",
+    title: `Your leave request was ${parsed.data.status}`,
+    body: `${leave.leaveType} · ${days} day${days === 1 ? "" : "s"} · ${leave.startDate.toISOString().slice(0, 10)} → ${leave.endDate.toISOString().slice(0, 10)}`,
+    link: "/profile",
+  });
 
   return NextResponse.json({ leave });
 }
