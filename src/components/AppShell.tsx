@@ -24,6 +24,10 @@ const adminLinks = [
   { href: "/admin/sales/dashboard", label: "Sales Dashboard" },
   { href: "/admin/sales/reports", label: "Sales Reports" },
   { href: "/admin/sales/products", label: "Products" },
+  { href: "/admin/sales/regions", label: "Regions" },
+  { href: "/admin/sales/customers", label: "Customer Regions" },
+  { href: "/admin/sales/weekly-plans", label: "Weekly Plans" },
+  { href: "/admin/sales/plans", label: "Daily Plans" },
   { href: "/admin/notifications", label: "Send Announcement" },
   { href: "/admin/org", label: "Organization" },
 ];

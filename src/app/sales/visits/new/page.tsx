@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "../../../../components/AppShell";
 import { Card } from "../../../../components/ui/Card";
@@ -18,6 +18,9 @@ type ProductLine = { productId: string; offeredPrice: string; discussion: string
 
 export default function AddVisitPage() {
   const router = useRouter();
+  const sp = useSearchParams();
+  const presetShopId = sp.get("shopId") ?? "";
+  const presetPlanId = sp.get("planId") ?? "";
   const token = typeof window !== "undefined" ? getToken() : null;
 
   const [shops, setShops] = useState<Shop[]>([]);
@@ -58,6 +61,10 @@ export default function AddVisitPage() {
       .then((r) => setProducts(r.products))
       .catch(() => {});
   }, [token]);
+
+  useEffect(() => {
+    if (presetShopId) setShopId(presetShopId);
+  }, [presetShopId]);
 
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
@@ -141,7 +148,7 @@ export default function AddVisitPage() {
       setSuccess("Visit logged successfully");
       setNotes("");
       setProductLines([]);
-      setTimeout(() => router.push("/sales"), 800);
+      setTimeout(() => router.push(presetPlanId ? "/sales/plan" : "/sales"), 800);
     } catch (e: any) {
       setError(e?.message ?? "Failed to save visit");
     } finally {
@@ -168,10 +175,15 @@ export default function AddVisitPage() {
       <div className="mx-auto max-w-xl space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-zinc-900">Add Visit</h1>
-          <Link href="/sales" className="text-sm text-zinc-600 hover:underline">
+          <Link href={presetPlanId ? "/sales/plan" : "/sales"} className="text-sm text-zinc-600 hover:underline">
             ← Back
           </Link>
         </div>
+        {presetPlanId && (
+          <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
+            Logging visit for a planned customer. The plan will be marked done after you save.
+          </div>
+        )}
 
         <Card>
           <div className="space-y-4">

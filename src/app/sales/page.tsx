@@ -19,6 +19,7 @@ type Summary = {
 };
 
 const tiles = [
+  { href: "/sales/plan", label: "My Plan", desc: "Today's planned visits", color: "bg-sky-50 border-sky-200 text-sky-900" },
   { href: "/sales/visits/new", label: "Add Visit", desc: "Log a customer visit", color: "bg-blue-50 border-blue-200 text-blue-900" },
   { href: "/sales/orders/new", label: "New Order", desc: "Place a customer order", color: "bg-emerald-50 border-emerald-200 text-emerald-900" },
   { href: "/sales/payments/new", label: "Add Collection", desc: "Record a payment received", color: "bg-amber-50 border-amber-200 text-amber-900" },

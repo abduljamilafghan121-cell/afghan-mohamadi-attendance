@@ -101,6 +101,11 @@ model User {
   salesOrders    Order[]   @relation("OrderUser")
   salesPayments  Payment[] @relation("PaymentUser")
 
+  weeklyPlanTemplates        WeeklyPlanTemplate[] @relation("WeeklyPlanTemplateUser")
+  weeklyPlanTemplatesCreated WeeklyPlanTemplate[] @relation("WeeklyPlanTemplateCreatedBy")
+  visitPlans                 VisitPlan[]          @relation("VisitPlanUser")
+  visitPlansCreated          VisitPlan[]          @relation("VisitPlanCreatedBy")
+
   notifications  Notification[]
 }
 
@@ -135,6 +140,88 @@ enum CustomerType {
   existing
 }
 
+enum VisitPlanStatus {
+  pending
+  done
+  missed
+  cancelled
+}
+
+enum VisitPlanSource {
+  template
+  manual
+}
+
+model Region {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shops               Shop[]
+  weeklyPlanTemplates WeeklyPlanTemplate[]
+
+  @@index([name])
+}
+
+model WeeklyPlanTemplate {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("WeeklyPlanTemplateUser", fields: [userId], references: [id], onDelete: Cascade)
+  weekday     Int
+  regionId    String?
+  region      Region?  @relation(fields: [regionId], references: [id])
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdById String?
+  createdBy   User?    @relation("WeeklyPlanTemplateCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customers WeeklyPlanCustomer[]
+  plans     VisitPlan[]
+
+  @@unique([userId, weekday])
+  @@index([weekday])
+}
+
+model WeeklyPlanCustomer {
+  id         String             @id @default(cuid())
+  templateId String
+  template   WeeklyPlanTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  shopId     String
+  shop       Shop               @relation(fields: [shopId], references: [id])
+  createdAt  DateTime           @default(now())
+
+  @@unique([templateId, shopId])
+  @@index([shopId])
+}
+
+model VisitPlan {
+  id           String          @id @default(cuid())
+  userId       String
+  user         User            @relation("VisitPlanUser", fields: [userId], references: [id], onDelete: Cascade)
+  shopId       String
+  shop         Shop            @relation(fields: [shopId], references: [id])
+  plannedDate  DateTime
+  notes        String?
+  status       VisitPlanStatus @default(pending)
+  source       VisitPlanSource @default(template)
+  templateId   String?
+  template     WeeklyPlanTemplate? @relation(fields: [templateId], references: [id])
+  visitId      String?         @unique
+  visit        Visit?          @relation(fields: [visitId], references: [id])
+  createdById  String?
+  createdBy    User?           @relation("VisitPlanCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([userId, plannedDate])
+  @@index([status])
+  @@index([shopId])
+}
+
 enum SalesPaymentType {
   cash
   credit
@@ -155,6 +242,9 @@ model Shop {
   gpsLat    Float?
   gpsLng    Float?
 
+  regionId  String?
+  region    Region?  @relation(fields: [regionId], references: [id])
+
   createdById String?
   createdBy   User?    @relation("ShopCreatedBy", fields: [createdById], references: [id])
 
@@ -162,11 +252,14 @@ model Shop {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  visits   Visit[]
-  orders   Order[]
-  payments Payment[]
+  visits             Visit[]
+  orders             Order[]
+  payments           Payment[]
+  visitPlans         VisitPlan[]
+  weeklyPlanCustomers WeeklyPlanCustomer[]
 
   @@index([name])
+  @@index([regionId])
 }
 
 model Product {
@@ -197,6 +290,8 @@ model Visit {
   createdAt    DateTime     @default(now())
 
   products VisitProduct[]
+
+  plan VisitPlan?
 
   @@index([userId, visitDate])
   @@index([shopId])

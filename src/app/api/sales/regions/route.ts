@@ -1,0 +1,15 @@
+import { NextResponse } from "next/server";
+import { prisma } from "../../../../lib/prisma";
+import { requireUser } from "../../../../lib/apiAuth";
+
+export async function GET(req: Request) {
+  const auth = await requireUser(req);
+  if (!auth.ok) return auth.response;
+
+  const regions = await prisma.region.findMany({
+    where: { isActive: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+  return NextResponse.json({ regions });
+}

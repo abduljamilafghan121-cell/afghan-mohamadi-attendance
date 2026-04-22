@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { requireUser } from "../../../../lib/apiAuth";
+import { linkVisitToPlan } from "../../../../lib/visitPlans";
 
 export async function GET(req: Request) {
   const auth = await requireUser(req);
@@ -89,6 +90,9 @@ export async function POST(req: Request) {
       products: true,
     },
   });
+
+  // Auto-link to a matching pending plan (today + same customer)
+  await linkVisitToPlan(visit.id, auth.user.id, shop.id).catch(() => null);
 
   return NextResponse.json({ visit });
 }

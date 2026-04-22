@@ -26,6 +26,37 @@ with a full Sales / Order / Collection module.
   `AttendanceEvent`, `LeaveRequest`, `Holiday`, `WorkdayOverride`,
   `LeaveBalance`, `CorrectionRequest`, `AttendanceAuditLog`, `Organization`.
 
+### Visit Plans (new — admin-driven weekly templates)
+- **Concept**: Admin sets up a weekly template per salesman per weekday
+  ("Saturday → Ahmed → Downtown region → these customers"). System
+  auto-generates the actual `VisitPlan` rows for each day from the matching
+  weekday template. One-off plans for special dates also supported.
+- Tables: `Region`, `WeeklyPlanTemplate`, `WeeklyPlanCustomer`, `VisitPlan`.
+  Plus `Shop.regionId` and `Visit.planId` (back-link to plan).
+- Statuses: `pending` → `done` (auto-set when matching visit logged) /
+  `missed` (auto-set at end of day) / `cancelled`.
+- Admin UI:
+  - `/admin/sales/regions` — Region CRUD.
+  - `/admin/sales/customers` — assign region to each customer.
+  - `/admin/sales/weekly-plans` — grid editor (rows=salesmen, cols=weekdays).
+    Editing a weekday template cascades to today's already-generated plan.
+  - `/admin/sales/plans` — daily plans calendar/list, filters, one-off creation,
+    cancel/reopen/delete.
+- Salesman UI:
+  - `/sales/plan` — "My Plan" with date switcher; each row has Log Visit button
+    that pre-fills `/sales/visits/new?shopId=…&planId=…`.
+- API routes:
+  - Admin: `GET/POST/PATCH/DELETE /api/admin/sales/regions`,
+    `GET/PATCH /api/admin/sales/shops` (region tagging),
+    `GET/POST/DELETE /api/admin/sales/weekly-plans`,
+    `GET/POST/PATCH/DELETE /api/admin/sales/plans`.
+  - Salesman: `GET /api/sales/regions`, `GET /api/sales/my-plan?date=YYYY-MM-DD`.
+- Generation engine: `src/lib/visitPlans.ts` — `ensurePlansForDate` (idempotent),
+  `syncTodayFromTemplate` (cascade-on-edit), `markPastPlansMissed`,
+  `linkVisitToPlan` (called from `POST /api/sales/visits`).
+- Permissions: regions, customer regions, templates, all plans → admin only.
+  Salesmen are read-only on their own day's plan.
+
 ### Sales (new)
 - Hub page: `/sales` (visible to every authenticated user).
 - Salesman pages:
