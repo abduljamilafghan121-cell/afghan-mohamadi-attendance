@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { getBearerToken, verifyAccessToken } from "../../../../lib/auth";
-import { hashQrToken, startOfDayInTimeZone } from "../../../../lib/qr";
+import { startOfDayInTimeZone } from "../../../../lib/qr";
+import { validateQrForAttendance } from "../../../../lib/qrValidate";
 import { isWithinRadius } from "../../../../lib/geo";
 import { isOffDay, calcLateMinutes, startOfDayUtcFromDate } from "../../../../lib/schedule";
 
@@ -48,32 +49,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Outside office radius" }, { status: 400 });
   }
 
-  let parsed: any;
-  try {
-    parsed = JSON.parse(body.data.qrPayload);
-  } catch {
-    return NextResponse.json({ error: "Invalid QR payload" }, { status: 400 });
-  }
-  if (!parsed?.token || typeof parsed.token !== "string") {
-    return NextResponse.json({ error: "Invalid QR payload" }, { status: 400 });
-  }
-
-  const qrTokenHash = hashQrToken(parsed.token);
   const now = new Date();
-
-  const qr = await prisma.dailyQrToken.findFirst({
-    where: {
-      officeId: office.id,
-      tokenHash: qrTokenHash,
-      validFrom: { lte: now },
-      validTo: { gte: now },
-      OR: [{ purpose: "both" }, { purpose: "check_in" }],
-    },
+  const qrCheck = await validateQrForAttendance({
+    qrPayload: body.data.qrPayload,
+    scanFor: "check_in",
+    scannedOfficeId: office.id,
+    officeTimezone: office.timezone ?? "UTC",
+    now,
   });
-
-  if (!qr) {
-    return NextResponse.json({ error: "QR invalid or expired" }, { status: 400 });
+  if (!qrCheck.ok) {
+    return NextResponse.json(
+      { error: qrCheck.message, code: qrCheck.code, details: qrCheck.details },
+      { status: qrCheck.status },
+    );
   }
+  const qr = qrCheck.qr;
 
   const workDate = startOfDayInTimeZone(now, office.timezone ?? "UTC");
   const workDateUtc = startOfDayUtcFromDate(workDate);
