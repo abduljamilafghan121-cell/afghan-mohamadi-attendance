@@ -150,9 +150,9 @@ export function NotificationBell({ enabled }: { enabled: boolean }) {
 
         {unread > 0 && (
           unread === 1 ? (
-            <span className="pointer-events-none absolute right-2 top-2 h-2 w-2 rounded-full bg-zinc-900 ring-2 ring-white" />
+            <span className="pointer-events-none absolute right-[9px] top-[9px] h-[7px] w-[7px] rounded-full bg-zinc-900 ring-2 ring-white" />
           ) : (
-            <span className="pointer-events-none absolute -right-0.5 -top-0.5 inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-zinc-900 px-1 text-[10px] font-medium leading-none tracking-tight text-white ring-2 ring-white tabular-nums">
+            <span className="pointer-events-none absolute right-1 top-1 inline-flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-zinc-900 px-[3px] text-[9px] font-medium leading-none tracking-tight text-white ring-2 ring-white tabular-nums">
               {unread > 99 ? "99+" : unread}
             </span>
           )
