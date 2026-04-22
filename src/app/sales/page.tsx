@@ -25,6 +25,7 @@ const tiles = [
   { href: "/sales/payments/new", label: "Add Collection", desc: "Record a payment received", color: "bg-amber-50 border-amber-200 text-amber-900" },
   { href: "/sales/customers", label: "Customers", desc: "Search & view full history", color: "bg-rose-50 border-rose-200 text-rose-900" },
   { href: "/sales/report", label: "My Daily Report", desc: "Today's totals & visits", color: "bg-violet-50 border-violet-200 text-violet-900" },
+  { href: "/sales/outstation", label: "Outstation", desc: "Request travel days off-base", color: "bg-cyan-50 border-cyan-200 text-cyan-900" },
 ];
 
 export default function SalesHomePage() {

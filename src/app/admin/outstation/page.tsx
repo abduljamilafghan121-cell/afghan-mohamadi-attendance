@@ -21,6 +21,18 @@ type Row = {
   user: { id: string; name: string; email: string };
   createdBy: { id: string; name: string } | null;
 };
+type ReqRow = {
+  id: string;
+  userId: string;
+  startDate: string;
+  endDate: string;
+  reason: string | null;
+  status: "pending" | "approved" | "rejected";
+  decisionNote: string | null;
+  createdAt: string;
+  user: { id: string; name: string; email: string };
+  decidedBy: { id: string; name: string } | null;
+};
 
 function ymd(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -43,6 +55,7 @@ export default function AdminOutstationPage() {
   const me = useMemo(() => (token ? parseJwt(token) : null), [token]);
 
   const [rows, setRows] = useState<Row[]>([]);
+  const [requests, setRequests] = useState<ReqRow[]>([]);
   const [users, setUsers] = useState<SUser[]>([]);
   const [filterUser, setFilterUser] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -64,12 +77,14 @@ export default function AdminOutstationPage() {
   const load = async () => {
     try {
       const qs = filterUser ? `?userId=${encodeURIComponent(filterUser)}` : "";
-      const [r, u] = await Promise.all([
+      const [r, u, rq] = await Promise.all([
         apiFetch<{ rows: Row[] }>(`/api/admin/outstation${qs}`),
         apiFetch<{ users: SUser[] }>("/api/admin/users"),
+        apiFetch<{ rows: ReqRow[] }>("/api/admin/outstation-requests"),
       ]);
       setRows(r.rows);
       setUsers(u.users.filter((x) => x.isActive));
+      setRequests(rq.rows);
     } catch (e: any) {
       setError(e?.message ?? "Failed");
     }
@@ -104,6 +119,24 @@ export default function AdminOutstationPage() {
     }
   };
 
+  const decide = async (id: string, action: "approve" | "reject") => {
+    let note: string | null = null;
+    if (action === "reject") {
+      const n = prompt("Reason for rejection (optional):", "");
+      if (n === null) return;
+      note = n.trim() || null;
+    }
+    try {
+      await apiFetch("/api/admin/outstation-requests", {
+        method: "PATCH",
+        body: JSON.stringify({ id, action, decisionNote: note }),
+      });
+      await load();
+    } catch (e: any) {
+      setError(e?.message ?? "Failed");
+    }
+  };
+
   const remove = async (id: string) => {
     if (!confirm("Delete this outstation entry? Cancelled plans will not be restored.")) return;
     try {
@@ -117,6 +150,8 @@ export default function AdminOutstationPage() {
   const todayDate = new Date(today + "T00:00:00");
   const upcoming = rows.filter((r) => new Date(r.endDate) >= todayDate);
   const past = rows.filter((r) => new Date(r.endDate) < todayDate);
+  const pendingReqs = requests.filter((r) => r.status === "pending");
+  const decidedReqs = requests.filter((r) => r.status !== "pending").slice(0, 30);
 
   return (
     <AppShell>
@@ -136,6 +171,84 @@ export default function AdminOutstationPage() {
             <span className="font-medium"> missed</span>.
           </p>
         </Card>
+
+        <Card title={`Pending requests (${pendingReqs.length})`}>
+          {pendingReqs.length === 0 ? (
+            <div className="py-3 text-center text-sm text-zinc-500">No pending requests.</div>
+          ) : (
+            <div className="space-y-2">
+              {pendingReqs.map((r) => (
+                <div key={r.id} className="rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-zinc-900">{r.user.name}</div>
+                      <div className="text-sm text-zinc-700">
+                        {fmt(r.startDate)} – {fmt(r.endDate)}{" "}
+                        <span className="text-xs text-zinc-500">
+                          ({dayCount(r.startDate, r.endDate)} day{dayCount(r.startDate, r.endDate) === 1 ? "" : "s"})
+                        </span>
+                      </div>
+                      {r.reason && <div className="mt-1 text-sm text-zinc-600">{r.reason}</div>}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={() => decide(r.id, "approve")} className="h-8 px-3 text-xs">
+                        Approve
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => decide(r.id, "reject")}
+                        className="h-8 px-3 text-xs"
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {decidedReqs.length > 0 && (
+          <Card title="Recent decisions">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase text-zinc-500">
+                    <th className="py-2 pr-3">Employee</th>
+                    <th className="py-2 pr-3">Range</th>
+                    <th className="py-2 pr-3">Status</th>
+                    <th className="py-2 pr-3">Decided by</th>
+                    <th className="py-2 pr-3">Note</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {decidedReqs.map((r) => (
+                    <tr key={r.id}>
+                      <td className="py-2 pr-3 font-medium text-zinc-800">{r.user.name}</td>
+                      <td className="py-2 pr-3 whitespace-nowrap">
+                        {fmt(r.startDate)} – {fmt(r.endDate)}
+                      </td>
+                      <td className="py-2 pr-3">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs ${
+                            r.status === "approved"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-rose-50 text-rose-700"
+                          }`}
+                        >
+                          {r.status}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-3 text-zinc-500">{r.decidedBy?.name ?? "—"}</td>
+                      <td className="py-2 pr-3 text-zinc-600">{r.decisionNote ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
 
         <Card title="Add outstation entry">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">

@@ -39,7 +39,18 @@ with a full Sales / Order / Collection module.
 - Admin UI: `/admin/outstation` — add / list / delete outstation entries,
   split into "Current & upcoming" and "Past".
 - Salesman UI: `/sales/plan` shows a sky-blue banner for outstation days.
-- API: `GET/POST/PATCH/DELETE /api/admin/outstation` (admin-only).
+- API:
+  - `GET/POST/PATCH/DELETE /api/admin/outstation` — admin direct entries.
+  - `GET/POST/DELETE /api/sales/outstation` — salesman submits / cancels
+    own pending requests.
+  - `GET/PATCH /api/admin/outstation-requests` — admin reviews and decides
+    (approve creates the OutstationDay + cancels pending plans + notifies
+    user; reject just notifies).
+- Salesman request flow: `/sales/outstation` (form + own request history).
+  Admin sees pending requests on `/admin/outstation` with Approve/Reject.
+  Notifications fire on submit (to admins) and on decision (to requester).
+- Table: `OutstationRequest` (status, decidedById, decisionNote,
+  outstationDayId back-link). Reuses `LeaveRequestStatus` enum.
 - Engine: `getOutstationUserIdsForDate`, `getOutstationForUserDate`,
   `cancelPendingPlansForOutstation` in `src/lib/visitPlans.ts`.
   `ensurePlansForDate` skips outstation users; `markPastPlansMissed`
