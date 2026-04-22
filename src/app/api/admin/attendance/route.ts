@@ -18,7 +18,7 @@ const QuerySchema = z.object({
   date: z.string().optional(),
   officeId: z.string().optional(),
   userId: z.string().optional(),
-  presence: z.enum(["all", "present", "absent"]).optional(),
+  presence: z.enum(["all", "present", "absent", "outstation"]).optional(),
 });
 
 export async function GET(req: Request) {
@@ -112,6 +112,15 @@ export async function GET(req: Request) {
   });
   const overrideSet = new Set(overrides.map((o) => `${o.userId}::${toDateStr(o.date)}`));
 
+  const outstationDays = await prisma.outstationDay.findMany({
+    where: {
+      startDate: { lte: effectiveEnd },
+      endDate: { gte: start },
+      ...(userId ? { userId } : {}),
+    },
+    select: { userId: true, startDate: true, endDate: true, reason: true },
+  });
+
   const approvedLeaves = await prisma.leaveRequest.findMany({
     where: {
       status: "approved",
@@ -167,14 +176,24 @@ export async function GET(req: Request) {
           new Date(l.endDate) >= workDate
       );
 
+      const outstation = outstationDays.find(
+        (o) =>
+          o.userId === u.id &&
+          new Date(o.startDate) <= workDate &&
+          new Date(o.endDate) >= workDate,
+      );
+      const isOutstation = Boolean(outstation);
+
       const isDayOff = (offDay || isHoliday) && !hasOverride;
-      const effectiveAbsent = !isPresent && !isLeave && !isDayOff;
+      const effectiveAbsent = !isPresent && !isLeave && !isDayOff && !isOutstation;
 
       let status: string;
       if (isPresent) {
         status = s?.isOvertime ? "overtime" : (s?.status ?? "present");
       } else if (isLeave) {
         status = "leave";
+      } else if (isOutstation) {
+        status = "outstation";
       } else if (isHoliday && !hasOverride) {
         status = "holiday";
       } else if (offDay && !hasOverride) {
@@ -185,6 +204,7 @@ export async function GET(req: Request) {
 
       if (presence === "present" && !isPresent) continue;
       if (presence === "absent" && !effectiveAbsent) continue;
+      if (presence === "outstation" && !isOutstation) continue;
 
       rows.push({
         date: dateStr,
@@ -204,6 +224,8 @@ export async function GET(req: Request) {
         holidayName: holidayName ?? null,
         isOffDay: isDayOff,
         hasWorkdayOverride: hasOverride,
+        isOutstation,
+        outstationReason: outstation?.reason ?? null,
       });
     }
   }

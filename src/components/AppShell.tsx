@@ -21,6 +21,7 @@ const adminLinks = [
   { href: "/admin/corrections", label: "Corrections" },
   { href: "/admin/holidays", label: "Holidays" },
   { href: "/admin/workday-overrides", label: "Overrides" },
+  { href: "/admin/outstation", label: "Outstation" },
   { href: "/admin/sales/dashboard", label: "Sales Dashboard" },
   { href: "/admin/sales/reports", label: "Sales Reports" },
   { href: "/admin/sales/products", label: "Products" },

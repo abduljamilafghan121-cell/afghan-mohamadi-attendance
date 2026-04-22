@@ -47,6 +47,7 @@ const STATUS_COLORS: Record<string, string> = {
   off: "bg-zinc-100 text-zinc-500",
   holiday: "bg-amber-50 text-amber-700",
   overtime: "bg-orange-50 text-orange-700",
+  outstation: "bg-sky-50 text-sky-700",
   needs_approval: "bg-orange-50 text-orange-700",
   corrected: "bg-purple-50 text-purple-700",
 };
@@ -62,7 +63,7 @@ export default function AdminAttendancePage() {
   const [officeId, setOfficeId] = useState<string>("");
   const [users, setUsers] = useState<UserOption[]>([]);
   const [userId, setUserId] = useState<string>("");
-  const [presence, setPresence] = useState<"all" | "present" | "absent">("all");
+  const [presence, setPresence] = useState<"all" | "present" | "absent" | "outstation">("all");
   const [rows, setRows] = useState<AttendanceRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -339,6 +340,7 @@ export default function AdminAttendancePage() {
               <option value="all">All</option>
               <option value="present">Present</option>
               <option value="absent">Absent</option>
+              <option value="outstation">Outstation</option>
             </select>
           </div>
           <div className="flex flex-col justify-end gap-1">

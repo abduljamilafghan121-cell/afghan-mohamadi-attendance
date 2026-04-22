@@ -34,9 +34,41 @@ export function ymd(d: Date): string {
  *
  * For "all users" generation, pass userId = null.
  */
+/**
+ * Returns the set of userIds who are on outstation on the given date.
+ */
+export async function getOutstationUserIdsForDate(date: Date): Promise<Set<string>> {
+  const day = startOfDay(date);
+  const rows = await prisma.outstationDay.findMany({
+    where: {
+      startDate: { lte: endOfDay(day) },
+      endDate: { gte: day },
+    },
+    select: { userId: true },
+  });
+  return new Set(rows.map((r) => r.userId));
+}
+
+/**
+ * Returns the user's outstation entry covering this date, or null.
+ */
+export async function getOutstationForUserDate(userId: string, date: Date) {
+  const day = startOfDay(date);
+  return prisma.outstationDay.findFirst({
+    where: {
+      userId,
+      startDate: { lte: endOfDay(day) },
+      endDate: { gte: day },
+    },
+    orderBy: { startDate: "asc" },
+  });
+}
+
 export async function ensurePlansForDate(date: Date, userId?: string | null) {
   const day = startOfDay(date);
   const weekday = day.getDay();
+
+  const outstation = await getOutstationUserIdsForDate(day);
 
   const templates = await prisma.weeklyPlanTemplate.findMany({
     where: {
@@ -49,6 +81,8 @@ export async function ensurePlansForDate(date: Date, userId?: string | null) {
 
   for (const tpl of templates) {
     if (tpl.customers.length === 0) continue;
+    // Skip generation for users on outstation that day.
+    if (outstation.has(tpl.userId)) continue;
 
     const existing = await prisma.visitPlan.findMany({
       where: {
@@ -134,16 +168,69 @@ export async function syncTodayFromTemplate(templateId: string) {
 }
 
 /**
- * Mark any pending plans whose planned date is before today as "missed".
+ * Mark any pending plans whose planned date is before today as "missed",
+ * EXCEPT for plans that fall inside an outstation range — those become
+ * "cancelled" with an "Outstation" note instead of "missed".
  */
 export async function markPastPlansMissed() {
   const today = startOfDay(new Date());
+
+  const pastPending = await prisma.visitPlan.findMany({
+    where: { status: "pending", plannedDate: { lt: today } },
+    select: { id: true, userId: true, plannedDate: true, notes: true },
+  });
+  if (pastPending.length === 0) return;
+
+  const userIds = Array.from(new Set(pastPending.map((p) => p.userId)));
+  const outstations = await prisma.outstationDay.findMany({
+    where: { userId: { in: userIds } },
+    select: { userId: true, startDate: true, endDate: true },
+  });
+
+  const isOutstation = (uid: string, d: Date) =>
+    outstations.some(
+      (o) => o.userId === uid && o.startDate <= d && o.endDate >= startOfDay(d),
+    );
+
+  const toCancelIds: string[] = [];
+  const toMissIds: string[] = [];
+  for (const p of pastPending) {
+    if (isOutstation(p.userId, p.plannedDate)) toCancelIds.push(p.id);
+    else toMissIds.push(p.id);
+  }
+
+  if (toCancelIds.length > 0) {
+    await prisma.visitPlan.updateMany({
+      where: { id: { in: toCancelIds } },
+      data: { status: "cancelled" },
+    });
+  }
+  if (toMissIds.length > 0) {
+    await prisma.visitPlan.updateMany({
+      where: { id: { in: toMissIds } },
+      data: { status: "missed" },
+    });
+  }
+}
+
+/**
+ * Called after an outstation entry is created/updated.
+ * For each day in the range, cancel any pending template plans for that user
+ * (manual one-off plans are preserved — admin may have planned them on purpose).
+ */
+export async function cancelPendingPlansForOutstation(
+  userId: string,
+  startDate: Date,
+  endDate: Date,
+) {
   await prisma.visitPlan.updateMany({
     where: {
+      userId,
       status: "pending",
-      plannedDate: { lt: today },
+      source: "template",
+      plannedDate: { gte: startOfDay(startDate), lte: endOfDay(endDate) },
     },
-    data: { status: "missed" },
+    data: { status: "cancelled" },
   });
 }
 

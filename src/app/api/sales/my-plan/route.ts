@@ -4,6 +4,7 @@ import { requireUser } from "../../../../lib/apiAuth";
 import {
   ensurePlansForDate,
   endOfDay,
+  getOutstationForUserDate,
   markPastPlansMissed,
   parseDateParam,
 } from "../../../../lib/visitPlans";
@@ -49,5 +50,18 @@ export async function GET(req: Request) {
     cancelled: plans.filter((p) => p.status === "cancelled").length,
   };
 
-  return NextResponse.json({ plans, summary });
+  const outstation = await getOutstationForUserDate(auth.user.id, date);
+
+  return NextResponse.json({
+    plans,
+    summary,
+    outstation: outstation
+      ? {
+          id: outstation.id,
+          startDate: outstation.startDate,
+          endDate: outstation.endDate,
+          reason: outstation.reason,
+        }
+      : null,
+  });
 }

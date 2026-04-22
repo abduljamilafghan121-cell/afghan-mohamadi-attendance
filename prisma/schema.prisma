@@ -96,6 +96,9 @@ model User {
   overridesCreated  WorkdayOverride[] @relation("WorkdayOverrideCreatedBy")
   leaveBalances     LeaveBalance[]
 
+  outstationDays         OutstationDay[] @relation("OutstationDayUser")
+  outstationDaysCreated  OutstationDay[] @relation("OutstationDayCreatedBy")
+
   shopsCreated   Shop[]    @relation("ShopCreatedBy")
   salesVisits    Visit[]   @relation("VisitUser")
   salesOrders    Order[]   @relation("OrderUser")
@@ -562,6 +565,23 @@ model WorkdayOverride {
   @@unique([userId, date])
   @@index([userId])
   @@index([date])
+}
+
+model OutstationDay {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("OutstationDayUser", fields: [userId], references: [id], onDelete: Cascade)
+  startDate   DateTime
+  endDate     DateTime
+  reason      String?
+  createdById String?
+  createdBy   User?    @relation("OutstationDayCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([startDate])
+  @@index([endDate])
 }
 
 model LeaveBalance {

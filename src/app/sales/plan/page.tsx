@@ -50,6 +50,11 @@ export default function MyPlanPage() {
     missed: number;
     cancelled: number;
   } | null>(null);
+  const [outstation, setOutstation] = useState<{
+    startDate: string;
+    endDate: string;
+    reason: string | null;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -60,9 +65,10 @@ export default function MyPlanPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const r = await apiFetch<{ plans: Plan[]; summary: any }>(`/api/sales/my-plan?date=${date}`);
+      const r = await apiFetch<{ plans: Plan[]; summary: any; outstation: any }>(`/api/sales/my-plan?date=${date}`);
       setPlans(r.plans);
       setSummary(r.summary);
+      setOutstation(r.outstation ?? null);
     } catch (e: any) {
       setError(e?.message ?? "Failed");
     } finally {
@@ -127,6 +133,22 @@ export default function MyPlanPage() {
             </div>
           )}
         </Card>
+
+        {outstation && (
+          <Card>
+            <div className="rounded-lg bg-sky-50 p-3 text-sm text-sky-800">
+              <div className="font-semibold">Outstation</div>
+              <div>
+                {new Date(outstation.startDate).toLocaleDateString()} –{" "}
+                {new Date(outstation.endDate).toLocaleDateString()}
+                {outstation.reason ? ` · ${outstation.reason}` : ""}
+              </div>
+              <div className="mt-1 text-xs text-sky-700">
+                Plans for these days are auto-cancelled and won't count as missed.
+              </div>
+            </div>
+          </Card>
+        )}
 
         {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 

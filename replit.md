@@ -26,6 +26,25 @@ with a full Sales / Order / Collection module.
   `AttendanceEvent`, `LeaveRequest`, `Holiday`, `WorkdayOverride`,
   `LeaveBalance`, `CorrectionRequest`, `AttendanceAuditLog`, `Organization`.
 
+### Outstation Days (new)
+- **Concept**: Admin marks a date range during which a salesman is travelling.
+  On those days both modules respect the entry:
+  - **Attendance**: status is `outstation` (sky-blue) instead of `absent`.
+    Filter "Outstation" added to `/admin/attendance`.
+  - **Visit Plans**: template plans are not generated for those days; any
+    pending template plans already in the range are auto-cancelled, so
+    `markPastPlansMissed` will not flip them to `missed`. Manual one-off
+    plans are preserved (admin may have planned outstation visits).
+- Table: `OutstationDay` (userId, startDate, endDate, reason, createdById).
+- Admin UI: `/admin/outstation` — add / list / delete outstation entries,
+  split into "Current & upcoming" and "Past".
+- Salesman UI: `/sales/plan` shows a sky-blue banner for outstation days.
+- API: `GET/POST/PATCH/DELETE /api/admin/outstation` (admin-only).
+- Engine: `getOutstationUserIdsForDate`, `getOutstationForUserDate`,
+  `cancelPendingPlansForOutstation` in `src/lib/visitPlans.ts`.
+  `ensurePlansForDate` skips outstation users; `markPastPlansMissed`
+  cancels (instead of missing) plans that fall inside an outstation range.
+
 ### Visit Plans (new — admin-driven weekly templates)
 - **Concept**: Admin sets up a weekly template per salesman per weekday
   ("Saturday → Ahmed → Downtown region → these customers"). System
