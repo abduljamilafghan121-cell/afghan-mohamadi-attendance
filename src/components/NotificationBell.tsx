@@ -130,16 +130,32 @@ export function NotificationBell({ enabled }: { enabled: boolean }) {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label="Notifications"
-        className="relative rounded-lg p-2 text-zinc-700 hover:bg-zinc-100 active:bg-zinc-200 transition-colors"
+        className={`relative inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+          open ? "bg-zinc-100 text-zinc-900" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+        }`}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
           <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
         </svg>
+
         {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white shadow ring-2 ring-white">
-            {unread > 99 ? "99+" : unread}
-          </span>
+          unread === 1 ? (
+            <span className="pointer-events-none absolute right-2 top-2 h-2 w-2 rounded-full bg-zinc-900 ring-2 ring-white" />
+          ) : (
+            <span className="pointer-events-none absolute -right-0.5 -top-0.5 inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-zinc-900 px-1 text-[10px] font-medium leading-none tracking-tight text-white ring-2 ring-white tabular-nums">
+              {unread > 99 ? "99+" : unread}
+            </span>
+          )
         )}
       </button>
 
