@@ -104,9 +104,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const user = useMemo(() => (token ? parseJwt(token) : null), [token]);
 
   const [pendingTotal, setPendingTotal] = useState(0);
+  const [pendingByKey, setPendingByKey] = useState<Record<string, number>>({});
   useEffect(() => {
     if (!token) {
       setPendingTotal(0);
+      setPendingByKey({});
       return;
     }
     let alive = true;
@@ -118,7 +120,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         });
         if (!r.ok) return;
         const j = await r.json();
-        if (alive) setPendingTotal(j?.total ?? 0);
+        if (!alive) return;
+        setPendingTotal(j?.total ?? 0);
+        const map: Record<string, number> = {};
+        for (const g of (j?.groups ?? []) as Array<{ key: string; count: number }>) {
+          map[g.key] = g.count;
+        }
+        setPendingByKey(map);
       } catch {
         /* ignore */
       }
@@ -130,6 +138,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       clearInterval(id);
     };
   }, [token, pathname]);
+
+  const adminLinkPendingCount = (href: string): number => {
+    if (href === "/admin/sales/orders") return pendingByKey.orders ?? 0;
+    if (href === "/admin/leaves") return pendingByKey.leaves ?? 0;
+    if (href === "/admin/corrections") return pendingByKey.corrections ?? 0;
+    if (href === "/admin/outstation") return pendingByKey.outstation ?? 0;
+    return 0;
+  };
 
   const onLogout = () => {
     clearToken();
@@ -210,21 +226,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
 
                 {adminOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-zinc-200 bg-white py-1.5 shadow-lg z-30">
-                    {adminLinks.map((l) => (
-                      <Link
-                        key={l.href}
-                        href={l.href}
-                        onClick={() => setAdminOpen(false)}
-                        className={`
-                          block px-4 py-2 text-sm transition-colors duration-100
-                          ${pathname === l.href ? "bg-zinc-100 font-medium text-zinc-900" : "text-zinc-700 hover:bg-zinc-50"}
-                          active:bg-zinc-200
-                        `}
-                      >
-                        {l.label}
-                      </Link>
-                    ))}
+                  <div className="absolute right-0 top-full mt-1 w-56 rounded-xl border border-zinc-200 bg-white py-1.5 shadow-lg z-30">
+                    {adminLinks.map((l) => {
+                      const c = adminLinkPendingCount(l.href);
+                      return (
+                        <Link
+                          key={l.href}
+                          href={l.href}
+                          onClick={() => setAdminOpen(false)}
+                          className={`
+                            flex items-center justify-between gap-2 px-4 py-2 text-sm transition-colors duration-100
+                            ${pathname === l.href ? "bg-zinc-100 font-medium text-zinc-900" : "text-zinc-700 hover:bg-zinc-50"}
+                            active:bg-zinc-200
+                          `}
+                        >
+                          <span>{l.label}</span>
+                          {c > 0 && (
+                            <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1.5 text-[11px] font-semibold leading-5 text-white">
+                              {c > 99 ? "99+" : c}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -307,11 +331,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <div className="mt-2 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
                   Admin
                 </div>
-                {adminLinks.map((l) => (
-                  <MobileNavLink key={l.href} href={l.href} active={pathname === l.href} onClick={() => setMenuOpen(false)}>
-                    {l.label}
-                  </MobileNavLink>
-                ))}
+                {adminLinks.map((l) => {
+                  const c = adminLinkPendingCount(l.href);
+                  return (
+                    <MobileNavLink key={l.href} href={l.href} active={pathname === l.href} onClick={() => setMenuOpen(false)}>
+                      <span className="inline-flex w-full items-center justify-between gap-2">
+                        <span>{l.label}</span>
+                        {c > 0 && (
+                          <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1.5 text-[11px] font-semibold leading-5 text-white">
+                            {c > 99 ? "99+" : c}
+                          </span>
+                        )}
+                      </span>
+                    </MobileNavLink>
+                  );
+                })}
               </>
             )}
             {user ? (
