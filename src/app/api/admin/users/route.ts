@@ -3,6 +3,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "../../../../lib/prisma";
 import { assertRole, getBearerToken, verifyAccessToken } from "../../../../lib/auth";
+import { logActivity } from "../../../../lib/activityLog";
 
 const CreateUserSchema = z.object({
   name: z.string().min(1),
@@ -100,6 +101,13 @@ export async function POST(req: Request) {
       } as any,
       select: { id: true, name: true, email: true, role: true, isActive: true, managerId: true },
     });
+
+    logActivity(
+      authUser.id,
+      "user_created",
+      "admin",
+      `Created user ${user.name} (${user.email}) · role: ${user.role}`,
+    ).catch(() => null);
 
     return NextResponse.json({ user });
   } catch (e: any) {

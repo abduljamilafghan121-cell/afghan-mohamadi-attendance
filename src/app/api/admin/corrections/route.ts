@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { assertRole, getBearerToken, verifyAccessToken } from "../../../../lib/auth";
 import { notifyUser } from "../../../../lib/notify";
+import { logActivity } from "../../../../lib/activityLog";
 
 const DecideSchema = z.object({
   id: z.string().min(1),
@@ -136,6 +137,13 @@ export async function POST(req: Request) {
     body: `${corrReq.requestType.replace("_", " ")} · ${corrReq.workDate.toISOString().slice(0, 10)}`,
     link: "/employee/history",
   });
+
+  logActivity(
+    admin.id,
+    `correction_${parsed.data.status}`,
+    "admin",
+    `Correction ${parsed.data.status} for ${corrReq.user.name} · ${corrReq.requestType.replace("_", " ")} · ${corrReq.workDate.toISOString().slice(0, 10)}`,
+  ).catch(() => null);
 
   return NextResponse.json({ success: true });
 }

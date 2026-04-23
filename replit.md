@@ -121,6 +121,26 @@ with a full Sales / Order / Collection module.
 - Each user only sees / manages their own visits, orders and payments;
   admins can view everything via the admin pages.
 
+### Activity Log (new — admin-only audit trail)
+- **Concept**: Fire-and-forget logging of every meaningful user action so admins
+  have a full audit trail without impacting request performance.
+- Table: `ActivityLog` (id, userId, action, module, details?, createdAt).
+  Indexed on `(userId, createdAt)`, `(module, createdAt)`, `createdAt`.
+  Cascade-deletes when user is deleted.
+- Helper: `src/lib/activityLog.ts` — `logActivity(userId, action, module, details?)`.
+  Errors are swallowed so logging never breaks the main flow.
+- Instrumented actions (module → action):
+  - `auth` → `login`
+  - `attendance` → `check_in`, `check_out`
+  - `leave` → `leave_submitted`
+  - `correction` → `correction_submitted`
+  - `sales` → `visit_logged`, `order_created`, `payment_recorded`
+  - `admin` → `leave_approved/rejected`, `correction_approved/rejected`,
+    `order_approved/rejected`, `user_created`
+- API: `GET /api/admin/activity-log` — filters: userId, module, from, to, limit (max 500).
+- Admin UI: `/admin/activity-log` — table with colour-coded module badges,
+  filterable by user, module, date range, and row limit. Accessible from sidebar.
+
 ## Running
 
 ```

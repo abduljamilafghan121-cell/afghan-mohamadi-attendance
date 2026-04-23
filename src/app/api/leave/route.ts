@@ -4,6 +4,7 @@ import { prisma } from "../../../lib/prisma";
 import { getBearerToken, verifyAccessToken } from "../../../lib/auth";
 import { startOfDayFromDateString } from "../../../lib/qr";
 import { notifyAdmins } from "../../../lib/notify";
+import { logActivity } from "../../../lib/activityLog";
 
 const CreateSchema = z.object({
   startDate: z.string().min(1),
@@ -95,6 +96,13 @@ export async function POST(req: Request) {
     body: `${parsed.data.leaveType ?? "annual"} · ${days} day${days === 1 ? "" : "s"} · ${parsed.data.startDate} → ${parsed.data.endDate}${parsed.data.reason ? ` · "${parsed.data.reason}"` : ""}`,
     link: "/admin/leaves",
   });
+
+  logActivity(
+    authUser.id,
+    "leave_submitted",
+    "leave",
+    `${leave.leaveType} leave · ${leave.startDate.toISOString().slice(0, 10)} → ${leave.endDate.toISOString().slice(0, 10)}`,
+  ).catch(() => null);
 
   return NextResponse.json({ leave });
 }

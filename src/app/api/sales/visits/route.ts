@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { requireUser } from "../../../../lib/apiAuth";
 import { linkVisitToPlan } from "../../../../lib/visitPlans";
+import { logActivity } from "../../../../lib/activityLog";
 
 export async function GET(req: Request) {
   const auth = await requireUser(req);
@@ -99,6 +100,13 @@ export async function POST(req: Request) {
 
   // Auto-link to a matching pending plan (today + same customer)
   await linkVisitToPlan(visit.id, auth.user.id, shop.id).catch(() => null);
+
+  logActivity(
+    auth.user.id,
+    "visit_logged",
+    "sales",
+    `Visited ${shop.name}${body.data.products.length ? ` · ${body.data.products.length} product(s) discussed` : ""}`,
+  ).catch(() => null);
 
   return NextResponse.json({ visit });
 }

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { assertRole, getBearerToken, verifyAccessToken } from "../../../../lib/auth";
 import { notifyUser } from "../../../../lib/notify";
+import { logActivity } from "../../../../lib/activityLog";
 
 const QuerySchema = z.object({
   status: z.enum(["all", "pending", "approved", "rejected"]).optional(),
@@ -130,6 +131,13 @@ export async function POST(req: Request) {
     body: `${leave.leaveType} · ${days} day${days === 1 ? "" : "s"} · ${leave.startDate.toISOString().slice(0, 10)} → ${leave.endDate.toISOString().slice(0, 10)}`,
     link: "/profile",
   });
+
+  logActivity(
+    admin.id,
+    `leave_${parsed.data.status}`,
+    "admin",
+    `Leave ${parsed.data.status} for ${leave.user.name} · ${leave.leaveType} · ${leave.startDate.toISOString().slice(0, 10)} → ${leave.endDate.toISOString().slice(0, 10)}`,
+  ).catch(() => null);
 
   return NextResponse.json({ leave });
 }

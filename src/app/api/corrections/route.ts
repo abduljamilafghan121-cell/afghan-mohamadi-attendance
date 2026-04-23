@@ -4,6 +4,7 @@ import { prisma } from "../../../lib/prisma";
 import { getBearerToken, verifyAccessToken } from "../../../lib/auth";
 import { startOfDayFromDateString } from "../../../lib/qr";
 import { notifyAdmins } from "../../../lib/notify";
+import { logActivity } from "../../../lib/activityLog";
 
 const CreateSchema = z.object({
   workDate: z.string().min(1),
@@ -102,6 +103,13 @@ export async function POST(req: Request) {
     body: `${parsed.data.requestType.replace("_", " ")} · ${parsed.data.workDate}${parsed.data.reason ? ` · "${parsed.data.reason}"` : ""}`,
     link: "/admin/corrections",
   });
+
+  logActivity(
+    authUser.id,
+    "correction_submitted",
+    "correction",
+    `${request.requestType.replace("_", " ")} · ${parsed.data.workDate} · ${request.reason}`,
+  ).catch(() => null);
 
   return NextResponse.json({ request });
 }

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../../../../../lib/prisma";
 import { requireUser } from "../../../../../../lib/apiAuth";
 import { notifyUser } from "../../../../../../lib/notify";
+import { logActivity } from "../../../../../../lib/activityLog";
 
 const PatchSchema = z.object({
   status: z.enum(["approved", "rejected"]),
@@ -61,6 +62,13 @@ export async function PATCH(
     body: `Your order for ${existing.shop.name} (total ${updated.total.toFixed(2)}) was ${body.data.status} by ${reviewer?.name ?? "an admin"}.`,
     link: "/sales",
   }).catch(() => null);
+
+  logActivity(
+    auth.user.id,
+    `order_${body.data.status}`,
+    "admin",
+    `Order for ${existing.shop.name} by ${updated.user.name} · total ${updated.total.toFixed(2)}${body.data.reviewNotes ? ` · ${body.data.reviewNotes}` : ""}`,
+  ).catch(() => null);
 
   return NextResponse.json({ order: updated });
 }

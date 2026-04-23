@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { requireUser } from "../../../../lib/apiAuth";
+import { logActivity } from "../../../../lib/activityLog";
 
 export async function GET(req: Request) {
   const auth = await requireUser(req);
@@ -50,6 +51,13 @@ export async function POST(req: Request) {
     },
     include: { shop: { select: { id: true, name: true } } },
   });
+
+  logActivity(
+    auth.user.id,
+    "payment_recorded",
+    "sales",
+    `Collected ${payment.amount.toFixed(2)} from ${payment.customerName} · ${payment.method}`,
+  ).catch(() => null);
 
   return NextResponse.json({ payment });
 }

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { requireUser } from "../../../../lib/apiAuth";
 import { notifyAdmins } from "../../../../lib/notify";
+import { logActivity } from "../../../../lib/activityLog";
 
 export async function GET(req: Request) {
   const auth = await requireUser(req);
@@ -94,6 +95,13 @@ export async function POST(req: Request) {
     body: `${submitter?.name ?? "A salesman"} placed an order for ${shop.name} — total ${total.toFixed(2)}`,
     link: "/admin/sales/orders",
   }).catch(() => null);
+
+  logActivity(
+    auth.user.id,
+    "order_created",
+    "sales",
+    `Order for ${shop.name} · ${body.data.paymentType} · total ${total.toFixed(2)}`,
+  ).catch(() => null);
 
   return NextResponse.json({ order });
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { getBearerToken, verifyAccessToken } from "../../../../lib/auth";
+import { logActivity } from "../../../../lib/activityLog";
 import { startOfDayInTimeZone } from "../../../../lib/qr";
 import { validateQrForAttendance } from "../../../../lib/qrValidate";
 import { notifyAdmins } from "../../../../lib/notify";
@@ -144,6 +145,13 @@ export async function POST(req: Request) {
       link: "/admin/attendance",
     });
   }
+
+  logActivity(
+    authUser.id,
+    "check_in",
+    "attendance",
+    `Checked in at ${office.name}${isLateArrival ? ` · ${minutesLate} min late` : ""}${sessionIsOvertime ? " · overtime" : ""}`,
+  ).catch(() => null);
 
   return NextResponse.json({
     sessionId: session.id,

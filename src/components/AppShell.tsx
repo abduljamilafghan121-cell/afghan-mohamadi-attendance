@@ -30,6 +30,7 @@ const adminLinks = [
   { href: "/admin/sales/customers", label: "Customer Regions" },
   { href: "/admin/sales/weekly-plans", label: "Weekly Plans" },
   { href: "/admin/sales/plans", label: "Daily Plans" },
+  { href: "/admin/activity-log", label: "Activity Log" },
   { href: "/admin/notifications", label: "Send Announcement" },
   { href: "/admin/org", label: "Organization" },
 ];

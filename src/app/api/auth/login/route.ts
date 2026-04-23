@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { signAccessToken } from "../../../../lib/auth";
+import { logActivity } from "../../../../lib/activityLog";
 
 const BodySchema = z.object({
   email: z.string().min(1),
@@ -30,6 +31,8 @@ export async function POST(req: Request) {
   }
 
   const token = await signAccessToken({ id: user.id, role: user.role }, body.data.rememberMe);
+
+  logActivity(user.id, "login", "auth", `Logged in`).catch(() => null);
 
   return NextResponse.json({
     token,

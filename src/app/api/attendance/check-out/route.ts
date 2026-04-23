@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { getBearerToken, verifyAccessToken } from "../../../../lib/auth";
+import { logActivity } from "../../../../lib/activityLog";
 import { startOfDayInTimeZone } from "../../../../lib/qr";
 import { validateQrForAttendance } from "../../../../lib/qrValidate";
 import { isWithinRadius } from "../../../../lib/geo";
@@ -104,6 +105,13 @@ export async function POST(req: Request) {
     where: { id: session.id },
     data: { checkOutAt: now, status: "closed", isEarlyDeparture, minutesEarlyDeparture },
   });
+
+  logActivity(
+    authUser.id,
+    "check_out",
+    "attendance",
+    `Checked out at ${office.name}${isEarlyDeparture ? ` · ${minutesEarlyDeparture} min early` : ""}`,
+  ).catch(() => null);
 
   return NextResponse.json({
     sessionId: session.id,

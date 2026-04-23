@@ -119,6 +119,7 @@ model User {
   visitPlansCreated          VisitPlan[]          @relation("VisitPlanCreatedBy")
 
   notifications  Notification[]
+  activityLogs   ActivityLog[]
 }
 
 enum NotificationType {
@@ -637,4 +638,19 @@ model LeaveBalance {
 
   @@unique([userId, year, leaveType])
   @@index([userId, year])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  module    String
+  details   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([module, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
 }
