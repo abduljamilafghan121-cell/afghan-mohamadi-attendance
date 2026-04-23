@@ -8,7 +8,9 @@ type NotificationType =
   | "qr_generated"
   | "late_check_in"
   | "broadcast"
-  | "system";
+  | "system"
+  | "order_submitted"
+  | "order_decided";
 
 export interface NotifyInput {
   userId: string;

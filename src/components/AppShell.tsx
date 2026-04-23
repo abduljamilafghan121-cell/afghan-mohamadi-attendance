@@ -23,6 +23,7 @@ const adminLinks = [
   { href: "/admin/workday-overrides", label: "Overrides" },
   { href: "/admin/outstation", label: "Outstation" },
   { href: "/admin/sales/dashboard", label: "Sales Dashboard" },
+  { href: "/admin/sales/orders", label: "Order Approvals" },
   { href: "/admin/sales/reports", label: "Sales Reports" },
   { href: "/admin/sales/products", label: "Products" },
   { href: "/admin/sales/regions", label: "Regions" },

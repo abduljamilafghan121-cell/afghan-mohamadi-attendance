@@ -81,7 +81,7 @@ export default function NewOrderPage() {
           items: validLines.map((l) => ({ productId: l.productId, quantity: Number(l.quantity) })),
         }),
       });
-      setSuccess("Order placed successfully");
+      setSuccess("Order submitted — pending admin approval");
       setTimeout(() => router.push("/sales"), 800);
     } catch (e: any) {
       setError(e?.message ?? "Failed to place order");
@@ -102,6 +102,9 @@ export default function NewOrderPage() {
 
         <Card>
           <div className="space-y-4">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+              Orders are submitted for admin approval. They are not finalized until an admin approves them.
+            </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-zinc-700">Customer *</label>
               <Combobox

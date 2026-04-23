@@ -65,10 +65,16 @@ export async function POST(req: Request) {
     const map = new Map(products.map((p) => [p.id, p]));
     visitProductsData = body.data.products.map((vp) => {
       const p = map.get(vp.productId)!;
+      // If salesman left "Offered price" blank, default to the product's
+      // standard price. If they entered a value, store it as the offered price.
+      const offeredPrice =
+        vp.offeredPrice === null || vp.offeredPrice === undefined
+          ? p.price
+          : vp.offeredPrice;
       return {
         productId: p.id,
         productName: p.name,
-        offeredPrice: vp.offeredPrice ?? null,
+        offeredPrice,
         discussion: vp.discussion ?? null,
         interest: vp.interest ?? null,
       };

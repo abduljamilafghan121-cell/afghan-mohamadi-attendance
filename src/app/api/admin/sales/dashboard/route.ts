@@ -14,7 +14,7 @@ export async function GET(req: Request) {
 
   const [orders, payments, visits, users] = await Promise.all([
     prisma.order.findMany({
-      where: { createdAt: { gte: start, lt: end } },
+      where: { createdAt: { gte: start, lt: end }, status: "approved" },
       include: { user: { select: { id: true, name: true } } },
     }),
     prisma.payment.findMany({

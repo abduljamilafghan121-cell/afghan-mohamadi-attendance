@@ -21,7 +21,7 @@ export async function GET(req: Request) {
   const start = from ?? new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
   const end = to ? new Date(to.getTime() + 24 * 60 * 60 * 1000) : new Date();
 
-  const where: any = { createdAt: { gte: start, lt: end } };
+  const where: any = { createdAt: { gte: start, lt: end }, status: "approved" };
   if (userId) where.userId = userId;
 
   const visitsWhere: any = { visitDate: { gte: start, lt: end } };

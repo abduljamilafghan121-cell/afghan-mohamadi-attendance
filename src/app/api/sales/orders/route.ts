@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { requireUser } from "../../../../lib/apiAuth";
+import { notifyAdmins } from "../../../../lib/notify";
 
 export async function GET(req: Request) {
   const auth = await requireUser(req);
@@ -77,10 +78,22 @@ export async function POST(req: Request) {
       total,
       paymentType: body.data.paymentType,
       notes: body.data.notes ?? null,
+      status: "pending",
       items: { create: itemsData },
     },
     include: { items: true, shop: { select: { id: true, name: true } } },
   });
+
+  // Notify admins that a new order is awaiting approval.
+  const submitter = await prisma.user
+    .findUnique({ where: { id: auth.user.id }, select: { name: true } })
+    .catch(() => null);
+  await notifyAdmins({
+    type: "order_submitted",
+    title: "New order pending approval",
+    body: `${submitter?.name ?? "A salesman"} placed an order for ${shop.name} — total ${total.toFixed(2)}`,
+    link: "/admin/sales/orders",
+  }).catch(() => null);
 
   return NextResponse.json({ order });
 }

@@ -41,6 +41,12 @@ enum LeaveRequestStatus {
   rejected
 }
 
+enum OrderApprovalStatus {
+  pending
+  approved
+  rejected
+}
+
 enum LeaveType {
   annual
   sick
@@ -102,9 +108,10 @@ model User {
   outstationRequestsDecided OutstationRequest[]  @relation("OutstationRequestDecidedBy")
 
   shopsCreated   Shop[]    @relation("ShopCreatedBy")
-  salesVisits    Visit[]   @relation("VisitUser")
-  salesOrders    Order[]   @relation("OrderUser")
-  salesPayments  Payment[] @relation("PaymentUser")
+  salesVisits      Visit[]   @relation("VisitUser")
+  salesOrders      Order[]   @relation("OrderUser")
+  salesOrdersDecided Order[] @relation("OrderReviewedBy")
+  salesPayments    Payment[] @relation("PaymentUser")
 
   weeklyPlanTemplates        WeeklyPlanTemplate[] @relation("WeeklyPlanTemplateUser")
   weeklyPlanTemplatesCreated WeeklyPlanTemplate[] @relation("WeeklyPlanTemplateCreatedBy")
@@ -123,6 +130,8 @@ enum NotificationType {
   late_check_in
   broadcast
   system
+  order_submitted
+  order_decided
 }
 
 model Notification {
@@ -318,22 +327,28 @@ model VisitProduct {
 }
 
 model Order {
-  id          String           @id @default(cuid())
+  id          String              @id @default(cuid())
   userId      String
-  user        User             @relation("OrderUser", fields: [userId], references: [id])
+  user        User                @relation("OrderUser", fields: [userId], references: [id])
   shopId      String
-  shop        Shop             @relation(fields: [shopId], references: [id])
-  total       Float            @default(0)
-  paymentType SalesPaymentType @default(cash)
+  shop        Shop                @relation(fields: [shopId], references: [id])
+  total       Float               @default(0)
+  paymentType SalesPaymentType    @default(cash)
   notes       String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  status      OrderApprovalStatus @default(pending)
+  reviewedById String?
+  reviewedBy   User?              @relation("OrderReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  reviewNotes  String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
   items    OrderItem[]
   payments Payment[]
 
   @@index([userId, createdAt])
   @@index([shopId])
+  @@index([status, createdAt])
 }
 
 model OrderItem {
