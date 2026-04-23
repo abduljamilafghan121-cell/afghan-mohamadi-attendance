@@ -21,15 +21,18 @@ export async function GET(req: Request) {
   const start = from ?? new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
   const end = to ? new Date(to.getTime() + 24 * 60 * 60 * 1000) : new Date();
 
-  const where: any = { createdAt: { gte: start, lt: end }, status: "approved" };
-  if (userId) where.userId = userId;
+  const ordersWhere: any = { createdAt: { gte: start, lt: end }, status: "approved" };
+  if (userId) ordersWhere.userId = userId;
+
+  const paymentsWhere: any = { createdAt: { gte: start, lt: end } };
+  if (userId) paymentsWhere.userId = userId;
 
   const visitsWhere: any = { visitDate: { gte: start, lt: end } };
   if (userId) visitsWhere.userId = userId;
 
   const [orders, payments, visits] = await Promise.all([
     prisma.order.findMany({
-      where,
+      where: ordersWhere,
       orderBy: { createdAt: "desc" },
       include: {
         user: { select: { id: true, name: true } },
@@ -38,7 +41,7 @@ export async function GET(req: Request) {
       },
     }),
     prisma.payment.findMany({
-      where,
+      where: paymentsWhere,
       orderBy: { createdAt: "desc" },
       include: {
         user: { select: { id: true, name: true } },

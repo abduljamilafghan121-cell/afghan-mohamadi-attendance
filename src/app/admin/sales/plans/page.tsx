@@ -26,6 +26,65 @@ type Plan = {
   visit: { id: string; visitDate: string } | null;
 };
 
+type VisitProduct = {
+  id: string;
+  productName: string;
+  offeredPrice: number | null;
+  discussion: string | null;
+  interest: string | null;
+};
+type OrderItem = {
+  id: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+};
+type PlanDetail = {
+  plan: {
+    id: string;
+    plannedDate: string;
+    status: string;
+    source: string;
+    notes: string | null;
+    user: { id: string; name: string; employeeId?: string | null };
+    shop: {
+      id: string;
+      name: string;
+      address: string | null;
+      phone: string | null;
+      region: { name: string } | null;
+    };
+    visit: {
+      id: string;
+      visitDate: string;
+      customerType: string;
+      notes: string | null;
+      gpsLat: number | null;
+      gpsLng: number | null;
+      products: VisitProduct[];
+    } | null;
+  };
+  orders: {
+    id: string;
+    createdAt: string;
+    total: number;
+    paymentType: string;
+    status: string;
+    notes: string | null;
+    reviewedBy: { name: string } | null;
+    items: OrderItem[];
+  }[];
+  payments: {
+    id: string;
+    createdAt: string;
+    customerName: string;
+    amount: number;
+    method: string;
+    notes: string | null;
+  }[];
+};
+
 function ymd(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -53,7 +112,10 @@ export default function AdminPlansPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // One-off creation form
+  const [detailPlan, setDetailPlan] = useState<PlanDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+
   const [newUserId, setNewUserId] = useState("");
   const [newShopId, setNewShopId] = useState("");
   const [newDate, setNewDate] = useState(today);
@@ -100,6 +162,20 @@ export default function AdminPlansPage() {
     if (token) loadPlans();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, from, to, userId, status]);
+
+  const openDetail = async (planId: string) => {
+    setDetailPlan(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    try {
+      const r = await apiFetch<PlanDetail>(`/api/admin/sales/plans/${planId}`);
+      setDetailPlan(r);
+    } catch (e: any) {
+      setDetailError(e?.message ?? "Failed to load details");
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   const createOneOff = async () => {
     setError(null);
@@ -290,6 +366,13 @@ export default function AdminPlansPage() {
                     </td>
                     <td className="py-2 pr-3 text-right">
                       <div className="flex justify-end gap-1">
+                        <Button
+                          variant="secondary"
+                          onClick={() => openDetail(p.id)}
+                          className="h-8 px-3 text-xs"
+                        >
+                          Details
+                        </Button>
                         {p.status === "pending" && (
                           <Button
                             variant="secondary"
@@ -331,7 +414,200 @@ export default function AdminPlansPage() {
           </div>
         </Card>
       </div>
+
+      {(detailPlan || detailLoading || detailError) && (
+        <PlanDetailModal
+          data={detailPlan}
+          loading={detailLoading}
+          error={detailError}
+          onClose={() => { setDetailPlan(null); setDetailError(null); }}
+        />
+      )}
     </AppShell>
+  );
+}
+
+function PlanDetailModal({
+  data,
+  loading,
+  error,
+  onClose,
+}: {
+  data: PlanDetail | null;
+  loading: boolean;
+  error: string | null;
+  onClose: () => void;
+}) {
+  const statusStyle: Record<string, string> = {
+    pending: "bg-amber-50 text-amber-700",
+    done: "bg-emerald-50 text-emerald-700",
+    missed: "bg-rose-50 text-rose-700",
+    cancelled: "bg-zinc-100 text-zinc-600",
+    approved: "bg-emerald-50 text-emerald-700",
+    rejected: "bg-rose-50 text-rose-700",
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+          <h2 className="text-base font-semibold text-zinc-900">Plan Details</h2>
+          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 text-xl leading-none">×</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          {loading && <div className="py-8 text-center text-sm text-zinc-500">Loading…</div>}
+          {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+
+          {data && (
+            <>
+              <section>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">Plan Info</h3>
+                <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 space-y-1 text-sm">
+                  <Row label="Date" value={new Date(data.plan.plannedDate).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })} />
+                  <Row label="Salesman" value={data.plan.user.name + (data.plan.user.employeeId ? ` (${data.plan.user.employeeId})` : "")} />
+                  <Row label="Customer" value={data.plan.shop.name} />
+                  {data.plan.shop.address && <Row label="Address" value={data.plan.shop.address} />}
+                  {data.plan.shop.phone && <Row label="Phone" value={data.plan.shop.phone} />}
+                  {data.plan.shop.region && <Row label="Region" value={data.plan.shop.region.name} />}
+                  <Row label="Source" value={data.plan.source === "template" ? "Weekly Template" : "One-off"} />
+                  <div className="flex gap-2 pt-1">
+                    <span className="text-xs font-medium text-zinc-500 w-28">Status</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${statusStyle[data.plan.status] ?? "bg-zinc-100 text-zinc-700"}`}>
+                      {data.plan.status}
+                    </span>
+                  </div>
+                  {data.plan.notes && <Row label="Notes" value={data.plan.notes} />}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                  Visit {data.plan.visit ? `— logged at ${new Date(data.plan.visit.visitDate).toLocaleTimeString()}` : ""}
+                </h3>
+                {data.plan.visit ? (
+                  <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 space-y-2 text-sm">
+                    <Row label="Logged At" value={new Date(data.plan.visit.visitDate).toLocaleString()} />
+                    <Row label="Customer Type" value={data.plan.visit.customerType === "new_customer" ? "New Customer" : "Existing Customer"} />
+                    {data.plan.visit.notes && <Row label="Notes" value={data.plan.visit.notes} />}
+                    {data.plan.visit.gpsLat != null && data.plan.visit.gpsLng != null && (
+                      <Row label="GPS" value={`${data.plan.visit.gpsLat.toFixed(5)}, ${data.plan.visit.gpsLng.toFixed(5)}`} />
+                    )}
+                    {data.plan.visit.products.length > 0 && (
+                      <div>
+                        <div className="text-xs font-medium text-zinc-500 mb-1">Products Discussed</div>
+                        <ul className="space-y-1">
+                          {data.plan.visit.products.map((p) => (
+                            <li key={p.id} className="rounded-lg border border-zinc-200 bg-white p-2 text-xs text-zinc-700">
+                              <span className="font-medium">{p.productName}</span>
+                              {p.offeredPrice != null && <span className="ml-2 text-zinc-500">@ {p.offeredPrice.toFixed(2)}</span>}
+                              {p.interest && <span className="ml-2 italic text-zinc-500">{p.interest}</span>}
+                              {p.discussion && <div className="mt-0.5 text-zinc-400">{p.discussion}</div>}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {data.plan.visit.products.length === 0 && (
+                      <div className="text-xs text-zinc-400">No products discussed</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-400">
+                    No visit logged for this plan yet.
+                  </div>
+                )}
+              </section>
+
+              <section>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                  Orders ({data.orders.length})
+                </h3>
+                {data.orders.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-400">
+                    No orders placed on this day for this customer.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {data.orders.map((o) => (
+                      <div key={o.id} className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-sm space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-zinc-800">{new Date(o.createdAt).toLocaleTimeString()}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs capitalize text-zinc-500">{o.paymentType}</span>
+                            <span className={`rounded-full px-2 py-0.5 text-xs ${statusStyle[o.status] ?? "bg-zinc-100 text-zinc-700"}`}>{o.status}</span>
+                            <span className="font-semibold text-zinc-900">{o.total.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        {o.notes && <div className="text-xs text-zinc-500">{o.notes}</div>}
+                        {o.reviewedBy && <div className="text-xs text-zinc-400">Reviewed by {o.reviewedBy.name}</div>}
+                        <ul className="mt-1 space-y-0.5">
+                          {o.items.map((item) => (
+                            <li key={item.id} className="flex justify-between text-xs text-zinc-600">
+                              <span>{item.productName} × {item.quantity}</span>
+                              <span>{item.lineTotal.toFixed(2)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                    <div className="text-right text-sm font-semibold text-zinc-800">
+                      Total: {data.orders.reduce((s, o) => s + o.total, 0).toFixed(2)}
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              <section>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                  Collections ({data.payments.length})
+                </h3>
+                {data.payments.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-400">
+                    No collections recorded on this day for this customer.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {data.payments.map((p) => (
+                      <div key={p.id} className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-sm space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-zinc-800">{new Date(p.createdAt).toLocaleTimeString()}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs capitalize text-zinc-500">{p.method.replace("_", " ")}</span>
+                            <span className="font-semibold text-zinc-900">{p.amount.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <div className="text-xs text-zinc-500">Received from: {p.customerName}</div>
+                        {p.notes && <div className="text-xs text-zinc-400">{p.notes}</div>}
+                      </div>
+                    ))}
+                    <div className="text-right text-sm font-semibold text-zinc-800">
+                      Total: {data.payments.reduce((s, p) => s + p.amount, 0).toFixed(2)}
+                    </div>
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+        </div>
+
+        <div className="border-t border-zinc-100 px-5 py-3 flex justify-end">
+          <Button variant="secondary" onClick={onClose}>Close</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-2">
+      <span className="text-xs font-medium text-zinc-500 w-28 shrink-0">{label}</span>
+      <span className="text-zinc-700">{value}</span>
+    </div>
   );
 }
 
