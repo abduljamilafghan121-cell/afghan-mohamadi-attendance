@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AppShell } from "../../components/AppShell";
 import { apiFetch } from "../../lib/clientApi";
 import { getToken, parseJwt } from "../../lib/clientAuth";
 
@@ -70,6 +71,7 @@ export default function PendingPage() {
   }, [token]);
 
   return (
+    <AppShell>
     <div className="mx-auto max-w-3xl p-4">
       <div className="mb-4 flex items-center justify-between gap-2">
         <div>
@@ -150,5 +152,6 @@ export default function PendingPage() {
         </>
       )}
     </div>
+    </AppShell>
   );
 }
