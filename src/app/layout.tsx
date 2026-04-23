@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { AppResumeHandler } from "../components/AppResumeHandler";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -30,7 +31,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <AppResumeHandler />
+        {children}
+      </body>
     </html>
   );
 }
