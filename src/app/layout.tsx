@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { Suspense } from "react";
 import { AppResumeHandler } from "../components/AppResumeHandler";
+import { TopProgressBar } from "../components/TopProgressBar";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -32,6 +34,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col">
+        <Suspense fallback={null}>
+          <TopProgressBar />
+        </Suspense>
         <AppResumeHandler />
         {children}
       </body>
