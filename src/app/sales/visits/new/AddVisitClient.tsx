@@ -287,67 +287,91 @@ export default function AddVisitClient() {
                 </Button>
               </div>
 
-              {productLines.length === 0 && (
+              {productLines.length === 0 ? (
                 <p className="text-xs text-zinc-500">
                   No products added. Use “+ Add product” to record what you offered or discussed.
                 </p>
+              ) : (
+                <div className="overflow-x-auto -mx-3 sm:mx-0 border rounded-lg">
+                  <table className="w-full min-w-[720px] text-sm border-collapse">
+                    <thead className="bg-zinc-50 text-zinc-600">
+                      <tr>
+                        <th className="text-left font-medium px-2 py-2 w-[28%]">Product</th>
+                        <th className="text-left font-medium px-2 py-2 w-[15%]">Offered price</th>
+                        <th className="text-left font-medium px-2 py-2 w-[17%]">Interest</th>
+                        <th className="text-left font-medium px-2 py-2">Discussion</th>
+                        <th className="px-2 py-2 w-[1%]"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productLines.map((line, i) => {
+                        const selected = line.productId
+                          ? productMap.get(line.productId)
+                          : undefined;
+                        return (
+                          <tr key={i} className="border-t align-top">
+                            <td className="px-2 py-2">
+                              <Combobox
+                                options={productOptions}
+                                value={line.productId}
+                                onChange={(v) => updateProductLine(i, { productId: v })}
+                                placeholder="Search products..."
+                              />
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder={selected ? selected.price.toFixed(2) : "0.00"}
+                                value={line.offeredPrice}
+                                onChange={(e) =>
+                                  updateProductLine(i, { offeredPrice: e.target.value })
+                                }
+                              />
+                            </td>
+                            <td className="px-2 py-2">
+                              <select
+                                className="w-full rounded-lg border px-2 py-2 text-sm"
+                                value={line.interest}
+                                onChange={(e) =>
+                                  updateProductLine(i, { interest: e.target.value })
+                                }
+                              >
+                                <option value="">—</option>
+                                <option value="high">High</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                                <option value="not_interested">Not interested</option>
+                              </select>
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input
+                                value={line.discussion}
+                                onChange={(e) =>
+                                  updateProductLine(i, { discussion: e.target.value })
+                                }
+                                placeholder="Notes..."
+                              />
+                            </td>
+                            <td className="px-2 py-2 text-right">
+                              <button
+                                type="button"
+                                onClick={() => removeProductLine(i)}
+                                className="text-red-600 hover:text-red-700 text-lg leading-none px-1"
+                                aria-label="Remove product"
+                                title="Remove"
+                              >
+                                ×
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               )}
-
-              {productLines.map((line, i) => {
-                const selected = line.productId ? productMap.get(line.productId) : undefined;
-                return (
-                  <div key={i} className="space-y-2 border p-3 rounded-lg">
-                    <div className="flex items-start gap-2">
-                      <div className="flex-1">
-                        <Combobox
-                          options={productOptions}
-                          value={line.productId}
-                          onChange={(v) => updateProductLine(i, { productId: v })}
-                          placeholder="Search products..."
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => removeProductLine(i)}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder={
-                        selected
-                          ? `Offered price (list ${selected.price.toFixed(2)})`
-                          : "Offered price"
-                      }
-                      value={line.offeredPrice}
-                      onChange={(e) => updateProductLine(i, { offeredPrice: e.target.value })}
-                    />
-
-                    <select
-                      className="w-full rounded-lg border px-3 py-2 text-sm"
-                      value={line.interest}
-                      onChange={(e) => updateProductLine(i, { interest: e.target.value })}
-                    >
-                      <option value="">Interest level...</option>
-                      <option value="high">High</option>
-                      <option value="medium">Medium</option>
-                      <option value="low">Low</option>
-                      <option value="not_interested">Not interested</option>
-                    </select>
-
-                    <Textarea
-                      value={line.discussion}
-                      onChange={(e) => updateProductLine(i, { discussion: e.target.value })}
-                      placeholder="Discussion notes for this product..."
-                    />
-                  </div>
-                );
-              })}
             </div>
 
             {error && <p className="text-red-600 text-sm">{error}</p>}
