@@ -103,6 +103,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const user = useMemo(() => (token ? parseJwt(token) : null), [token]);
 
+  const [pendingTotal, setPendingTotal] = useState(0);
+  useEffect(() => {
+    if (!token) {
+      setPendingTotal(0);
+      return;
+    }
+    let alive = true;
+    const fetchPending = async () => {
+      try {
+        const r = await fetch("/api/pending-summary", {
+          headers: { authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        if (!r.ok) return;
+        const j = await r.json();
+        if (alive) setPendingTotal(j?.total ?? 0);
+      } catch {
+        /* ignore */
+      }
+    };
+    fetchPending();
+    const id = setInterval(fetchPending, 30_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [token, pathname]);
+
   const onLogout = () => {
     clearToken();
     window.location.href = "/login";
@@ -139,6 +167,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <NavLink href="/profile" active={pathname === "/profile"}>
               Profile
             </NavLink>
+            {user && (
+              <NavLink href="/pending" active={pathname === "/pending"}>
+                <span className="inline-flex items-center gap-1.5">
+                  Pending
+                  {pendingTotal > 0 && (
+                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1.5 text-[11px] font-semibold leading-5 text-white">
+                      {pendingTotal > 99 ? "99+" : pendingTotal}
+                    </span>
+                  )}
+                </span>
+              </NavLink>
+            )}
             {(user?.role === "manager" || user?.role === "admin") && (
               <NavLink href="/manager" active={pathname.startsWith("/manager")}>
                 Manager
@@ -245,6 +285,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <MobileNavLink href="/profile" active={pathname === "/profile"} onClick={() => setMenuOpen(false)}>
               Profile
             </MobileNavLink>
+            {user && (
+              <MobileNavLink href="/pending" active={pathname === "/pending"} onClick={() => setMenuOpen(false)}>
+                <span className="inline-flex items-center gap-2">
+                  Pending
+                  {pendingTotal > 0 && (
+                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1.5 text-[11px] font-semibold leading-5 text-white">
+                      {pendingTotal > 99 ? "99+" : pendingTotal}
+                    </span>
+                  )}
+                </span>
+              </MobileNavLink>
+            )}
             {(user?.role === "manager" || user?.role === "admin") && (
               <MobileNavLink href="/manager" active={pathname.startsWith("/manager")} onClick={() => setMenuOpen(false)}>
                 Manager

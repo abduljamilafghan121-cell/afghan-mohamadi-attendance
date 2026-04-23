@@ -148,6 +148,17 @@ export async function PUT(
     });
   });
 
+  const editor = await prisma.user
+    .findUnique({ where: { id: auth.user.id }, select: { name: true } })
+    .catch(() => null);
+  await notifyUser({
+    userId: updated.userId,
+    type: "order_submitted",
+    title: "Your pending order was edited by admin",
+    body: `${editor?.name ?? "An admin"} updated your order for ${updated.shop.name}. New total: ${updated.total.toFixed(2)}. It is still awaiting approval.`,
+    link: "/sales",
+  }).catch(() => null);
+
   return NextResponse.json({ order: updated });
 }
 
