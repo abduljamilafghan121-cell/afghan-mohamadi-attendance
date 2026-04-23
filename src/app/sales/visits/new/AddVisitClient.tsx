@@ -279,6 +279,77 @@ export default function AddVisitClient() {
               placeholder="Notes..."
             />
 
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Products offered / discussed</label>
+                <Button type="button" variant="secondary" onClick={addProductLine}>
+                  + Add product
+                </Button>
+              </div>
+
+              {productLines.length === 0 && (
+                <p className="text-xs text-zinc-500">
+                  No products added. Use “+ Add product” to record what you offered or discussed.
+                </p>
+              )}
+
+              {productLines.map((line, i) => {
+                const selected = line.productId ? productMap.get(line.productId) : undefined;
+                return (
+                  <div key={i} className="space-y-2 border p-3 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <Combobox
+                          options={productOptions}
+                          value={line.productId}
+                          onChange={(v) => updateProductLine(i, { productId: v })}
+                          placeholder="Search products..."
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => removeProductLine(i)}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder={
+                        selected
+                          ? `Offered price (list ${selected.price.toFixed(2)})`
+                          : "Offered price"
+                      }
+                      value={line.offeredPrice}
+                      onChange={(e) => updateProductLine(i, { offeredPrice: e.target.value })}
+                    />
+
+                    <select
+                      className="w-full rounded-lg border px-3 py-2 text-sm"
+                      value={line.interest}
+                      onChange={(e) => updateProductLine(i, { interest: e.target.value })}
+                    >
+                      <option value="">Interest level...</option>
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                      <option value="not_interested">Not interested</option>
+                    </select>
+
+                    <Textarea
+                      value={line.discussion}
+                      onChange={(e) => updateProductLine(i, { discussion: e.target.value })}
+                      placeholder="Discussion notes for this product..."
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
             {error && <p className="text-red-600 text-sm">{error}</p>}
             {success && <p className="text-green-600 text-sm">{success}</p>}
 
