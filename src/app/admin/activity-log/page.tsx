@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { apiFetch } from "../../../lib/clientApi";
+import { AppShell } from "../../../components/AppShell";
 
 type LogUser = { id: string; name: string; role: string; employeeId: string | null };
 
@@ -89,6 +90,7 @@ export default function ActivityLogPage() {
   }, [fetchLogs]);
 
   return (
+    <AppShell>
     <div className="space-y-4 p-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-zinc-900">Activity Log</h1>
@@ -250,5 +252,6 @@ export default function ActivityLogPage() {
         </p>
       )}
     </div>
+    </AppShell>
   );
 }
