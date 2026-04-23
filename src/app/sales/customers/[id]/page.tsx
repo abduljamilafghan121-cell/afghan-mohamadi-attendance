@@ -55,9 +55,13 @@ type OrderItem = {
 type Order = {
   id: string;
   createdAt: string;
+  updatedAt: string;
   total: number;
   paymentType: string;
   notes: string | null;
+  status: "pending" | "approved" | "rejected";
+  reviewedAt: string | null;
+  reviewNotes: string | null;
   user: { id: string; name: string };
   items: OrderItem[];
 };
@@ -312,15 +316,36 @@ function VisitRow({ v }: { v: Visit }) {
 
 function OrderRow({ o }: { o: Order }) {
   const isCredit = o.paymentType === "credit";
+  const statusColor =
+    o.status === "approved"
+      ? "bg-emerald-50 text-emerald-700"
+      : o.status === "rejected"
+      ? "bg-rose-50 text-rose-700"
+      : "bg-amber-50 text-amber-700";
+  const statusLabel =
+    o.status === "approved" ? "Approved" : o.status === "rejected" ? "Rejected" : "Pending review";
+  // "Edited" = updated more than 5s after creation (admin tweaked it before approval)
+  const wasEdited =
+    new Date(o.updatedAt).getTime() - new Date(o.createdAt).getTime() > 5000;
+  const borderColor =
+    o.status === "approved"
+      ? "border-emerald-200"
+      : o.status === "rejected"
+      ? "border-rose-200"
+      : "border-amber-200";
   return (
-    <div className="rounded-xl border border-zinc-200 p-3">
+    <div className={`rounded-xl border ${borderColor} p-3`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Pill color="bg-emerald-50 text-emerald-700">Order</Pill>
+          <Pill color={statusColor}>{statusLabel}</Pill>
           <span className="text-xs text-zinc-500">{fmtDateTime(o.createdAt)}</span>
           <Pill color={isCredit ? "bg-amber-50 text-amber-700" : "bg-zinc-100 text-zinc-700"}>
             {o.paymentType}
           </Pill>
+          {wasEdited && o.status !== "rejected" && (
+            <Pill color="bg-blue-50 text-blue-700">Edited by admin</Pill>
+          )}
         </div>
         <span className="text-sm font-semibold text-zinc-900">{o.total.toFixed(2)}</span>
       </div>
@@ -333,6 +358,22 @@ function OrderRow({ o }: { o: Order }) {
         ))}
       </ul>
       {o.notes && <div className="mt-1 text-xs text-zinc-500">Note: {o.notes}</div>}
+      {o.status === "rejected" && (
+        <div className="mt-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-800">
+          <span className="font-semibold">Rejected{o.reviewedAt ? ` on ${fmtDateTime(o.reviewedAt)}` : ""}:</span>{" "}
+          {o.reviewNotes?.trim() ? o.reviewNotes : "No reason provided."}
+        </div>
+      )}
+      {o.status === "approved" && o.reviewNotes?.trim() && (
+        <div className="mt-2 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">
+          <span className="font-semibold">Admin note:</span> {o.reviewNotes}
+        </div>
+      )}
+      {o.status === "pending" && (
+        <div className="mt-2 text-xs text-amber-700">
+          Awaiting admin approval. This order is not counted in totals yet.
+        </div>
+      )}
     </div>
   );
 }

@@ -56,12 +56,13 @@ export async function GET(
     }),
   ]);
 
-  const totalSales = Number(orders.reduce((s, o) => s + o.total, 0).toFixed(2));
+  const approvedOrders = orders.filter((o) => o.status === "approved");
+  const totalSales = Number(approvedOrders.reduce((s, o) => s + o.total, 0).toFixed(2));
   const cashSales = Number(
-    orders.filter((o) => o.paymentType === "cash").reduce((s, o) => s + o.total, 0).toFixed(2),
+    approvedOrders.filter((o) => o.paymentType === "cash").reduce((s, o) => s + o.total, 0).toFixed(2),
   );
   const creditSales = Number(
-    orders.filter((o) => o.paymentType === "credit").reduce((s, o) => s + o.total, 0).toFixed(2),
+    approvedOrders.filter((o) => o.paymentType === "credit").reduce((s, o) => s + o.total, 0).toFixed(2),
   );
   const totalCollections = Number(payments.reduce((s, p) => s + p.amount, 0).toFixed(2));
   // Outstanding = credit sales not yet collected (simple approximation:
