@@ -64,3 +64,90 @@ export async function PATCH(
 
   return NextResponse.json({ order: updated });
 }
+
+const PutSchema = z.object({
+  paymentType: z.enum(["cash", "credit"]).optional(),
+  notes: z.string().max(2000).optional().nullable(),
+  items: z
+    .array(
+      z.object({
+        productId: z.string().min(1),
+        quantity: z.number().int().positive(),
+      }),
+    )
+    .min(1, "At least one item is required"),
+});
+
+export async function PUT(
+  req: Request,
+  { params }: { params: { id: string } },
+) {
+  const auth = await requireUser(req, ["admin"]);
+  if (!auth.ok) return auth.response;
+
+  const body = PutSchema.safeParse(await req.json().catch(() => null));
+  if (!body.success) {
+    const msg = body.error.issues[0]?.message ?? "Invalid body";
+    return NextResponse.json({ error: msg }, { status: 400 });
+  }
+
+  const existing = await prisma.order.findUnique({ where: { id: params.id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+  if (existing.status !== "pending") {
+    return NextResponse.json(
+      { error: `Only pending orders can be edited` },
+      { status: 400 },
+    );
+  }
+
+  const productIds = body.data.items.map((i) => i.productId);
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+  });
+  if (products.length !== new Set(productIds).size) {
+    return NextResponse.json(
+      { error: "One or more products not found" },
+      { status: 400 },
+    );
+  }
+  const productMap = new Map(products.map((p) => [p.id, p]));
+
+  const itemsData = body.data.items.map((it) => {
+    const p = productMap.get(it.productId)!;
+    const lineTotal = Number((p.price * it.quantity).toFixed(2));
+    return {
+      productId: p.id,
+      productName: p.name,
+      unitPrice: p.price,
+      quantity: it.quantity,
+      lineTotal,
+    };
+  });
+  const total = Number(
+    itemsData.reduce((s, i) => s + i.lineTotal, 0).toFixed(2),
+  );
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.orderItem.deleteMany({ where: { orderId: params.id } });
+    return tx.order.update({
+      where: { id: params.id },
+      data: {
+        total,
+        paymentType: body.data.paymentType ?? existing.paymentType,
+        notes: body.data.notes ?? null,
+        items: { create: itemsData },
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        shop: { select: { id: true, name: true } },
+        items: true,
+        reviewedBy: { select: { id: true, name: true } },
+      },
+    });
+  });
+
+  return NextResponse.json({ order: updated });
+}
+
