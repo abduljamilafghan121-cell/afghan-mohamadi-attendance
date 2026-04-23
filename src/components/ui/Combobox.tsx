@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export type ComboOption = {
   id: string;
@@ -30,6 +31,7 @@ export function Combobox({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -41,13 +43,34 @@ export function Combobox({
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (wrapRef.current && wrapRef.current.contains(target)) return;
+      const menu = document.getElementById("combobox-portal-open");
+      if (menu && menu.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    if (!open) {
+      setMenuPos(null);
+      return;
+    }
+    const update = () => {
+      if (!wrapRef.current) return;
+      const r = wrapRef.current.getBoundingClientRect();
+      setMenuPos({ top: r.bottom + 4, left: r.left, width: r.width });
+    };
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [open]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -127,28 +150,41 @@ export function Combobox({
         </svg>
       </div>
 
-      {open && (
-        <div className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
-          {filtered.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-zinc-500">{emptyText}</div>
-          ) : (
-            filtered.map((o, i) => (
-              <button
-                key={o.id}
-                type="button"
-                onClick={() => pick(o.id)}
-                onMouseEnter={() => setHighlight(i)}
-                className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm ${
-                  i === highlight ? "bg-zinc-100" : ""
-                } ${o.id === value ? "font-medium text-zinc-900" : "text-zinc-700"}`}
-              >
-                <span className="truncate">{o.label}</span>
-                {o.hint ? <span className="ml-2 shrink-0 text-xs text-zinc-500">{o.hint}</span> : null}
-              </button>
-            ))
-          )}
-        </div>
-      )}
+      {open && menuPos && typeof document !== "undefined" &&
+        createPortal(
+          <div
+            id="combobox-portal-open"
+            style={{
+              position: "fixed",
+              top: menuPos.top,
+              left: menuPos.left,
+              width: menuPos.width,
+              zIndex: 1000,
+            }}
+            className="max-h-72 overflow-y-auto rounded-xl border border-zinc-200 bg-white py-1 shadow-lg"
+          >
+            {filtered.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-zinc-500">{emptyText}</div>
+            ) : (
+              filtered.map((o, i) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pick(o.id)}
+                  onMouseEnter={() => setHighlight(i)}
+                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm ${
+                    i === highlight ? "bg-zinc-100" : ""
+                  } ${o.id === value ? "font-medium text-zinc-900" : "text-zinc-700"}`}
+                >
+                  <span className="truncate">{o.label}</span>
+                  {o.hint ? <span className="ml-2 shrink-0 text-xs text-zinc-500">{o.hint}</span> : null}
+                </button>
+              ))
+            )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
