@@ -46,6 +46,27 @@ export function WorkdayBanner() {
   if (status.isAdmin) return null;
   if (status.canWork && !status.isOvertime) return null;
 
+  if (status.isOvertime) {
+    const dayLabel = status.isHoliday
+      ? `a public holiday${status.holidayName ? ` (${status.holidayName})` : ""}`
+      : "your weekly off day";
+    return (
+      <div className="flex items-start gap-3 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
+        <span className="mt-0.5 shrink-0 text-lg">⭐</span>
+        <div>
+          <div className="font-medium">
+            Overtime approved — you can work today
+          </div>
+          <div className="mt-0.5 text-xs text-orange-700">
+            Today is {dayLabel}, but an admin has scheduled you to work.
+            Every visit, order, collection and new customer you record today
+            will be tagged as overtime.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const headline = (() => {
     if (status.isOnLeave) {
       const lt = status.leaveType ? ` (${status.leaveType})` : "";
@@ -59,22 +80,6 @@ export function WorkdayBanner() {
     }
     return "Today is not a working day";
   })();
-
-  if (status.isOvertime) {
-    return (
-      <div className="flex items-start gap-3 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
-        <span className="mt-0.5 shrink-0 text-lg">⚠</span>
-        <div>
-          <div className="font-medium">{headline}</div>
-          <div className="mt-0.5 text-xs text-orange-700">
-            An admin has marked today as overtime for you. Visits, orders,
-            collections and new customers you record today will be tagged as
-            overtime.
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   const subline = status.isOnLeave
     ? "Sales actions are disabled until your leave ends. Contact an admin if you need to work."
