@@ -73,8 +73,31 @@ export async function GET(req: Request) {
   // Leave always blocks (no overtime escape hatch for leave).
   const isOnLeave = Boolean(approvedLeave);
   const blockedByCalendar = (offDay || !!holiday) && !hasOverride;
-  const canWork = !isOnLeave && !blockedByCalendar;
   const isOvertime = (offDay || !!holiday) && hasOverride && !isOnLeave;
+
+  // Also require check-in before any sales action — unless on outstation.
+  const onOutstation = await prisma.outstationDay.findFirst({
+    where: {
+      userId: user.id,
+      startDate: { lte: workDateUtc },
+      endDate: { gte: workDateUtc },
+    },
+    select: { id: true },
+  });
+  let isCheckedIn = false;
+  if (onOutstation) {
+    isCheckedIn = true; // outstation users are exempt
+  } else {
+    const session = await prisma.attendanceSession.findUnique({
+      where: { userId_workDate: { userId: user.id, workDate } },
+      select: { checkInAt: true },
+    });
+    isCheckedIn = Boolean(session?.checkInAt);
+  }
+
+  const calendarAllows = !isOnLeave && !blockedByCalendar;
+  const canWork = calendarAllows && isCheckedIn;
+  const needsCheckIn = calendarAllows && !isCheckedIn;
 
   let reason: string | null = null;
   if (isOnLeave) {
@@ -83,6 +106,8 @@ export async function GET(req: Request) {
     reason = "holiday";
   } else if (offDay) {
     reason = "offday";
+  } else if (needsCheckIn) {
+    reason = "no_checkin";
   }
 
   return NextResponse.json({
@@ -95,6 +120,9 @@ export async function GET(req: Request) {
     leaveType: approvedLeave?.leaveType ?? null,
     hasOverride,
     isOvertime,
+    isCheckedIn,
+    needsCheckIn,
+    isOnOutstation: Boolean(onOutstation),
     reason,
   });
 }

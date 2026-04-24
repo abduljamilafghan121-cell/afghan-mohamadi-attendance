@@ -67,24 +67,52 @@ export async function checkCanWorkToday(
   const offDay = isOffDay(workDate, weeklyOffDays, timezone);
   const holiday = await prisma.holiday.findFirst({ where: { date: workDateUtc } });
 
+  let isOvertime = false;
   if (offDay || holiday) {
     const override = await prisma.workdayOverride.findUnique({
       where: { userId_date: { userId, date: workDateUtc } },
     });
-    if (override?.isOvertime) {
-      return { allowed: true, isOvertime: true, reason: "overtime override" };
+    if (!override?.isOvertime) {
+      const label = holiday
+        ? `a public holiday (${holiday.name})`
+        : "your weekly off day";
+      return {
+        allowed: false,
+        status: 403,
+        error: `Today is ${label}. You are not scheduled to work. Contact an admin to allow you to work today.`,
+      };
     }
-    const label = holiday
-      ? `a public holiday (${holiday.name})`
-      : "your weekly off day";
-    return {
-      allowed: false,
-      status: 403,
-      error: `Today is ${label}. You are not scheduled to work. Contact an admin to allow you to work today.`,
-    };
+    isOvertime = true;
   }
 
-  return { allowed: true, isOvertime: false };
+  // Require an attendance check-in for today before any sales action.
+  // Users on outstation work outside the office and are not expected to
+  // check in via the office QR, so they are exempted.
+  const onOutstation = await prisma.outstationDay.findFirst({
+    where: {
+      userId,
+      startDate: { lte: workDateUtc },
+      endDate: { gte: workDateUtc },
+    },
+    select: { id: true },
+  });
+
+  if (!onOutstation) {
+    const session = await prisma.attendanceSession.findUnique({
+      where: { userId_workDate: { userId, workDate } },
+      select: { checkInAt: true },
+    });
+    if (!session || !session.checkInAt) {
+      return {
+        allowed: false,
+        status: 403,
+        error:
+          "Please check in first. Sales actions are blocked until you check in for today (or have an approved check-in correction).",
+      };
+    }
+  }
+
+  return { allowed: true, isOvertime, reason: isOvertime ? "overtime override" : undefined };
 }
 
 /**

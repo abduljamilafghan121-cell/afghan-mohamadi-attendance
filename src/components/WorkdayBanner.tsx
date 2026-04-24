@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/clientApi";
 
@@ -13,7 +14,10 @@ type Status = {
   leaveType: string | null;
   hasOverride: boolean;
   isOvertime: boolean;
-  reason: "leave" | "holiday" | "offday" | null;
+  isCheckedIn: boolean;
+  needsCheckIn: boolean;
+  isOnOutstation: boolean;
+  reason: "leave" | "holiday" | "offday" | "no_checkin" | null;
 };
 
 /**
@@ -46,6 +50,29 @@ export function WorkdayBanner() {
   if (status.isAdmin) return null;
   if (status.canWork && !status.isOvertime) return null;
 
+  // Calendar lets the user work today, but they haven't checked in yet.
+  if (status.needsCheckIn) {
+    return (
+      <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+        <span className="mt-0.5 shrink-0 text-lg">🕒</span>
+        <div className="flex-1">
+          <div className="font-medium">Please check in first</div>
+          <div className="mt-0.5 text-xs text-amber-700">
+            Sales actions are disabled until you check in for today. Once
+            you scan the office QR (or get an approved check-in correction),
+            you can record visits, orders, collections and new customers.
+          </div>
+          <Link
+            href="/employee"
+            className="mt-2 inline-block rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700"
+          >
+            Go to Check-in
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (status.isOvertime) {
     const dayLabel = status.isHoliday
       ? `a public holiday${status.holidayName ? ` (${status.holidayName})` : ""}`
@@ -61,6 +88,12 @@ export function WorkdayBanner() {
             Today is {dayLabel}, but an admin has scheduled you to work.
             Every visit, order, collection and new customer you record today
             will be tagged as overtime.
+            {!status.isCheckedIn && (
+              <>
+                {" "}You still need to check in first before you can record
+                anything.
+              </>
+            )}
           </div>
         </div>
       </div>
