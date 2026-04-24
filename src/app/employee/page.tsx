@@ -559,15 +559,17 @@ export default function EmployeePage() {
               {dayStatus && (dayStatus.isOffDay || dayStatus.isHoliday) && (
                 dayStatus.canCheckIn ? (
                   <div className="flex items-start gap-3 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
-                    <span className="mt-0.5 shrink-0 text-lg">⚠</span>
+                    <span className="mt-0.5 shrink-0 text-lg">⭐</span>
                     <div>
                       <div className="font-medium">
-                        {dayStatus.isHoliday
-                          ? `Today is a public holiday${dayStatus.holidayName ? `: ${dayStatus.holidayName}` : ""}`
-                          : "Today is your day off"}
+                        Overtime approved — you can work today
                       </div>
                       <div className="mt-0.5 text-xs text-orange-700">
-                        You have been scheduled to work today. This session will be marked as <strong>overtime</strong>.
+                        Today is {dayStatus.isHoliday
+                          ? `a public holiday${dayStatus.holidayName ? ` (${dayStatus.holidayName})` : ""}`
+                          : "your weekly off day"}, but an admin has scheduled
+                        you to work. Your check-in / check-out for today will
+                        be tagged as <strong>overtime</strong>.
                       </div>
                     </div>
                   </div>
@@ -578,10 +580,11 @@ export default function EmployeePage() {
                       <div className="font-medium">
                         {dayStatus.isHoliday
                           ? `Today is a public holiday${dayStatus.holidayName ? `: ${dayStatus.holidayName}` : ""}`
-                          : "Today is your day off"}
+                          : "Today is your weekly off day"}
                       </div>
                       <div className="mt-0.5 text-xs text-red-700">
-                        Check-in is not allowed today. If you need to work, contact your administrator.
+                        Check-in is not allowed today. Ask an admin to mark
+                        today as overtime if you need to work.
                       </div>
                     </div>
                   </div>
