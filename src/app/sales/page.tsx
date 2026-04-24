@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "../../components/AppShell";
+import { WorkdayBanner } from "../../components/WorkdayBanner";
 import { Card } from "../../components/ui/Card";
 import { apiFetch } from "../../lib/clientApi";
 import { getToken, parseJwt } from "../../lib/clientAuth";
@@ -54,6 +55,8 @@ export default function SalesHomePage() {
             Track customer visits, orders, and collections.
           </p>
         </div>
+
+        <WorkdayBanner />
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {tiles.map((t) => (

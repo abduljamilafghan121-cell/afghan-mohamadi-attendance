@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "../../../../components/AppShell";
+import { WorkdayBanner } from "../../../../components/WorkdayBanner";
 import { Card } from "../../../../components/ui/Card";
 import { Button } from "../../../../components/ui/Button";
 import { Input } from "../../../../components/ui/Input";
@@ -73,6 +74,8 @@ export default function AddCollectionPage() {
             ← Back
           </Link>
         </div>
+
+        <WorkdayBanner />
 
         <Card>
           <div className="space-y-4">
