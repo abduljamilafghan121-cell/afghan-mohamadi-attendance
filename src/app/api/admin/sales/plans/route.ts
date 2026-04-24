@@ -9,6 +9,7 @@ import {
   parseDateParam,
   startOfDay,
 } from "../../../../../lib/visitPlans";
+import { checkCanWorkOnDate } from "../../../../../lib/workdayGuard";
 
 export async function GET(req: Request) {
   const auth = await requireUser(req, ["admin"]);
@@ -70,6 +71,12 @@ export async function POST(req: Request) {
   if (!body.success) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
 
   const date = parseDateParam(body.data.plannedDate);
+
+  const guard = await checkCanWorkOnDate(body.data.userId, date);
+  if (!guard.allowed) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
+  }
+
   const plan = await prisma.visitPlan.create({
     data: {
       userId: body.data.userId,
@@ -110,6 +117,24 @@ export async function PATCH(req: Request) {
   if (body.data.plannedDate !== undefined) data.plannedDate = parseDateParam(body.data.plannedDate);
   if (body.data.shopId !== undefined) data.shopId = body.data.shopId;
   if (body.data.userId !== undefined) data.userId = body.data.userId;
+
+  // If we're moving the plan to a new date and/or a new salesman, re-validate
+  // that the target user can be scheduled to work on the target date.
+  if (data.plannedDate !== undefined || data.userId !== undefined) {
+    const existing = await prisma.visitPlan.findUnique({
+      where: { id: body.data.id },
+      select: { userId: true, plannedDate: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+    }
+    const targetUserId = data.userId ?? existing.userId;
+    const targetDate = data.plannedDate ?? existing.plannedDate;
+    const guard = await checkCanWorkOnDate(targetUserId, targetDate);
+    if (!guard.allowed) {
+      return NextResponse.json({ error: guard.error }, { status: guard.status });
+    }
+  }
 
   const plan = await prisma.visitPlan.update({
     where: { id: body.data.id },

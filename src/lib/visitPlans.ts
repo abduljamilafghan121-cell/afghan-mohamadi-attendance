@@ -70,6 +70,21 @@ export async function ensurePlansForDate(date: Date, userId?: string | null) {
 
   const outstation = await getOutstationUserIdsForDate(day);
 
+  const office = await prisma.office.findFirst({
+    where: { isActive: true },
+    orderBy: { createdAt: "asc" },
+    select: { weeklyOffDays: true },
+  });
+  const isOfficeOffDay = (office?.weeklyOffDays ?? [5]).includes(weekday);
+
+  const dayUtc = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate()));
+  const holiday = await prisma.holiday.findFirst({ where: { date: dayUtc } });
+
+  // If the date is a public holiday or a weekly office off day, skip
+  // template-based generation entirely. Admins can still create manual plans
+  // for that date through the API (which checks WorkdayOverride per-user).
+  if (holiday || isOfficeOffDay) return;
+
   const templates = await prisma.weeklyPlanTemplate.findMany({
     where: {
       weekday,
@@ -79,10 +94,28 @@ export async function ensurePlansForDate(date: Date, userId?: string | null) {
     include: { customers: true },
   });
 
+  // Skip generation for any user with an approved leave covering this date.
+  const userIdsInTemplates = Array.from(new Set(templates.map((t) => t.userId)));
+  let onLeaveUserIds = new Set<string>();
+  if (userIdsInTemplates.length > 0) {
+    const leaves = await prisma.leaveRequest.findMany({
+      where: {
+        userId: { in: userIdsInTemplates },
+        status: "approved",
+        startDate: { lte: day },
+        endDate: { gte: day },
+      },
+      select: { userId: true },
+    });
+    onLeaveUserIds = new Set(leaves.map((l) => l.userId));
+  }
+
   for (const tpl of templates) {
     if (tpl.customers.length === 0) continue;
     // Skip generation for users on outstation that day.
     if (outstation.has(tpl.userId)) continue;
+    // Skip generation for users on approved leave that day.
+    if (onLeaveUserIds.has(tpl.userId)) continue;
 
     const existing = await prisma.visitPlan.findMany({
       where: {
