@@ -4,6 +4,7 @@ import { prisma } from "../../../../lib/prisma";
 import { requireUser } from "../../../../lib/apiAuth";
 import { notifyAdmins } from "../../../../lib/notify";
 import { logActivity } from "../../../../lib/activityLog";
+import { checkCanWorkToday } from "../../../../lib/workdayGuard";
 
 export async function GET(req: Request) {
   const auth = await requireUser(req);
@@ -42,6 +43,11 @@ const CreateSchema = z.object({
 export async function POST(req: Request) {
   const auth = await requireUser(req);
   if (!auth.ok) return auth.response;
+
+  const guard = await checkCanWorkToday(auth.user.id, auth.user.role);
+  if (!guard.allowed) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
+  }
 
   const body = CreateSchema.safeParse(await req.json().catch(() => null));
   if (!body.success) {
@@ -100,7 +106,7 @@ export async function POST(req: Request) {
     auth.user.id,
     "order_created",
     "sales",
-    `Order for ${shop.name} · ${body.data.paymentType} · total ${total.toFixed(2)}`,
+    `Order for ${shop.name} · ${body.data.paymentType} · total ${total.toFixed(2)}${guard.isOvertime ? " · overtime" : ""}`,
   ).catch(() => null);
 
   return NextResponse.json({ order });

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { requireUser } from "../../../../lib/apiAuth";
 import { logActivity } from "../../../../lib/activityLog";
+import { checkCanWorkToday } from "../../../../lib/workdayGuard";
 
 export async function GET(req: Request) {
   const auth = await requireUser(req);
@@ -34,6 +35,11 @@ export async function POST(req: Request) {
   const auth = await requireUser(req);
   if (!auth.ok) return auth.response;
 
+  const guard = await checkCanWorkToday(auth.user.id, auth.user.role);
+  if (!guard.allowed) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
+  }
+
   const body = CreateSchema.safeParse(await req.json().catch(() => null));
   if (!body.success) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
@@ -56,7 +62,7 @@ export async function POST(req: Request) {
     auth.user.id,
     "payment_recorded",
     "sales",
-    `Collected ${payment.amount.toFixed(2)} from ${payment.customerName} · ${payment.method}`,
+    `Collected ${payment.amount.toFixed(2)} from ${payment.customerName} · ${payment.method}${guard.isOvertime ? " · overtime" : ""}`,
   ).catch(() => null);
 
   return NextResponse.json({ payment });

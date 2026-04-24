@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { requireUser } from "../../../../lib/apiAuth";
+import { checkCanWorkToday } from "../../../../lib/workdayGuard";
 
 export async function GET(req: Request) {
   const auth = await requireUser(req);
@@ -34,6 +35,11 @@ const CreateSchema = z.object({
 export async function POST(req: Request) {
   const auth = await requireUser(req);
   if (!auth.ok) return auth.response;
+
+  const guard = await checkCanWorkToday(auth.user.id, auth.user.role);
+  if (!guard.allowed) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
+  }
 
   const body = CreateSchema.safeParse(await req.json().catch(() => null));
   if (!body.success) {
