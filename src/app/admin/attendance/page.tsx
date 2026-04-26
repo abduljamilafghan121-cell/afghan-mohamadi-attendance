@@ -29,6 +29,8 @@ type AttendanceRow = {
   holidayName: string | null;
   isOffDay: boolean;
   hasWorkdayOverride: boolean;
+  isOutstation: boolean;
+  outstationReason: string | null;
   user: { id: string; name: string; email: string | null; role: string; isActive: boolean };
   office: { id: string; name: string; timezone: string } | null;
 };
@@ -126,7 +128,20 @@ export default function AdminAttendancePage() {
         const s = v === null || v === undefined ? "" : String(v);
         return `"${s.replace(/"/g, '""')}"`;
       };
-      const header = ["Date", "Employee", "Email", "Office", "Check-in", "Check-out", "Status"];
+      const header = [
+        "Date",
+        "Employee",
+        "Email",
+        "Office",
+        "Check-in",
+        "Check-out",
+        "Status",
+        "Late (min)",
+        "Early Out (min)",
+        "Overtime",
+        "Outstation",
+        "Outstation Reason",
+      ];
       const lines = [header.map(esc).join(",")].concat(
         rows.map((r) =>
           [
@@ -137,6 +152,11 @@ export default function AdminAttendancePage() {
             r.checkInAt ? new Date(r.checkInAt).toLocaleString() : "",
             r.checkOutAt ? new Date(r.checkOutAt).toLocaleString() : "",
             r.status,
+            r.isLateArrival ? (r.minutesLate ?? "Yes") : "",
+            r.isEarlyDeparture ? (r.minutesEarlyDeparture ?? "Yes") : "",
+            r.isOvertime ? "Yes" : "",
+            r.isOutstation ? "Yes" : "",
+            r.isOutstation ? (r.outstationReason ?? "") : "",
           ].map(esc).join(",")
         )
       );
@@ -163,16 +183,47 @@ export default function AdminAttendancePage() {
       presence !== "all" ? `Filter: ${presence}` : null,
     ].filter(Boolean).join("  |  ");
 
-    const tableRows = rows.map((r) => `
+    const escHtml = (v: string) =>
+      v.replace(/[&<>"']/g, (c) =>
+        c === "&" ? "&amp;" :
+        c === "<" ? "&lt;" :
+        c === ">" ? "&gt;" :
+        c === '"' ? "&quot;" : "&#39;"
+      );
+
+    const lateCount = rows.filter((r) => r.isLateArrival).length;
+    const earlyCount = rows.filter((r) => r.isEarlyDeparture).length;
+    const overtimeCount = rows.filter((r) => r.isOvertime).length;
+    const outstationCount = rows.filter((r) => r.isOutstation).length;
+
+    const tableRows = rows.map((r) => {
+      const badges: string[] = [];
+      if (r.isLateArrival) {
+        badges.push(`<span class="badge late">Late${r.minutesLate ? ` +${r.minutesLate}m` : ""}</span>`);
+      }
+      if (r.isEarlyDeparture) {
+        badges.push(`<span class="badge early">Early out${r.minutesEarlyDeparture ? ` -${r.minutesEarlyDeparture}m` : ""}</span>`);
+      }
+      if (r.isOvertime) {
+        badges.push(`<span class="badge overtime">Overtime</span>`);
+      }
+      if (r.isOutstation) {
+        const reason = r.outstationReason ? `: ${escHtml(r.outstationReason)}` : "";
+        badges.push(`<span class="badge outstation">Outstation${reason}</span>`);
+      }
+      const flagsCell = badges.length ? badges.join(" ") : "-";
+      return `
       <tr>
         <td>${r.date}</td>
-        <td>${r.user.name}</td>
-        <td>${r.user.email ?? ""}</td>
-        <td>${r.office?.name ?? "-"}</td>
+        <td>${escHtml(r.user.name)}</td>
+        <td>${escHtml(r.user.email ?? "")}</td>
+        <td>${escHtml(r.office?.name ?? "-")}</td>
         <td>${r.checkInAt ? new Date(r.checkInAt).toLocaleString() : "-"}</td>
         <td>${r.checkOutAt ? new Date(r.checkOutAt).toLocaleString() : "-"}</td>
         <td class="status ${r.status}">${r.status.charAt(0).toUpperCase() + r.status.slice(1)}</td>
-      </tr>`).join("");
+        <td>${flagsCell}</td>
+      </tr>`;
+    }).join("");
 
     const html = `<!DOCTYPE html>
 <html>
@@ -207,6 +258,16 @@ export default function AdminAttendancePage() {
     .status.off { color: #6b7280; }
     .status.needs_approval { color: #ea580c; }
     .status.corrected { color: #7c3aed; }
+    .status.outstation { color: #0284c7; }
+    .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-right: 3px; margin-bottom: 2px; white-space: nowrap; }
+    .badge.late { background: #fee2e2; color: #b91c1c; }
+    .badge.early { background: #fef3c7; color: #b45309; }
+    .badge.overtime { background: #ffedd5; color: #c2410c; }
+    .badge.outstation { background: #e0f2fe; color: #0369a1; }
+    .summary-box.late .value { color: #b91c1c; }
+    .summary-box.early .value { color: #b45309; }
+    .summary-box.overtime .value { color: #c2410c; }
+    .summary-box.outstation .value { color: #0369a1; }
     .footer { margin-top: 24px; font-size: 10px; color: #aaa; text-align: center; border-top: 1px solid #eee; padding-top: 12px; }
     @media print {
       body { padding: 16px; }
@@ -227,6 +288,10 @@ export default function AdminAttendancePage() {
     <div class="summary-box leave"><div class="label">On Leave</div><div class="value">${onLeave}</div></div>
     <div class="summary-box off"><div class="label">Day Off</div><div class="value">${off}</div></div>
     ${other > 0 ? `<div class="summary-box"><div class="label">Other</div><div class="value">${other}</div></div>` : ""}
+    ${lateCount > 0 ? `<div class="summary-box late"><div class="label">Late</div><div class="value">${lateCount}</div></div>` : ""}
+    ${earlyCount > 0 ? `<div class="summary-box early"><div class="label">Early Out</div><div class="value">${earlyCount}</div></div>` : ""}
+    ${overtimeCount > 0 ? `<div class="summary-box overtime"><div class="label">Overtime</div><div class="value">${overtimeCount}</div></div>` : ""}
+    ${outstationCount > 0 ? `<div class="summary-box outstation"><div class="label">Outstation</div><div class="value">${outstationCount}</div></div>` : ""}
   </div>
   <table>
     <thead>
@@ -238,6 +303,7 @@ export default function AdminAttendancePage() {
         <th>Check-in</th>
         <th>Check-out</th>
         <th>Status</th>
+        <th>Flags</th>
       </tr>
     </thead>
     <tbody>${tableRows}</tbody>
