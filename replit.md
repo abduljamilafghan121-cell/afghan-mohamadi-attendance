@@ -153,6 +153,19 @@ with a full Sales / Order / Collection module.
 - Admin UI: `/admin/activity-log` — table with colour-coded module badges,
   filterable by user, module, date range, and row limit. Accessible from sidebar.
 
+### Per-line Price Override on Orders (Apr 2026)
+- During order creation (salesman) and order edit (admin), each line item now
+  has an editable Price field that defaults to the product's catalogue price
+  but can be overridden if a different price was negotiated with the customer.
+- API: `POST /api/sales/orders` and `PUT /api/admin/sales/orders/[id]` accept
+  optional `unitPrice` per item (Zod: `number().nonnegative().optional()`).
+  When omitted, falls back to `Product.price`. `lineTotal` is recomputed from
+  the effective price.
+- UI: changing the product clears any prior override (so a fresh product picks
+  up its catalogue price). When a line has an override that differs from the
+  catalogue, an amber "List: X.XX" hint is shown beneath the price input.
+- No schema change required — `OrderItem.unitPrice` already existed.
+
 ### Order Dispatch + WhatsApp Notification (Apr 2026)
 - **Concept**: After admin approval, the salesman (or admin) clicks "Dispatch &
   notify customer". The system marks the order dispatched and opens WhatsApp

@@ -12,7 +12,9 @@ import { apiFetch } from "../../../../lib/clientApi";
 import { getToken, parseJwt } from "../../../../lib/clientAuth";
 
 type Product = { id: string; name: string; price: number };
-type EditLine = { productId: string; quantity: number };
+// `unitPrice` is an explicit price override. When null, the line uses the
+// product's catalogue price.
+type EditLine = { productId: string; quantity: number; unitPrice: number | null };
 
 type Item = {
   id: string;
@@ -136,7 +138,15 @@ export default function AdminOrdersPage() {
 
   const startEdit = (o: Order) => {
     setEditingId(o.id);
-    setEditLines(o.items.map((it) => ({ productId: it.productId ?? "", quantity: it.quantity })));
+    setEditLines(
+      o.items.map((it) => ({
+        productId: it.productId ?? "",
+        quantity: it.quantity,
+        // Preload existing price as an explicit override so we never silently
+        // change a line's price just because the catalogue has moved.
+        unitPrice: it.unitPrice,
+      })),
+    );
     setEditPaymentType((o.paymentType as "cash" | "credit") ?? "cash");
     setEditNotes(o.notes ?? "");
     setNoteFor(null);
@@ -151,17 +161,29 @@ export default function AdminOrdersPage() {
 
   const updateEditLine = (i: number, patch: Partial<EditLine>) =>
     setEditLines((arr) => arr.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  // Picking a different product clears any previous price override and reverts
+  // to the new product's catalogue price.
+  const updateEditLineProduct = (i: number, productId: string) =>
+    setEditLines((arr) =>
+      arr.map((l, idx) => (idx === i ? { ...l, productId, unitPrice: null } : l)),
+    );
   const addEditLine = () =>
-    setEditLines((arr) => [...arr, { productId: "", quantity: 1 }]);
+    setEditLines((arr) => [...arr, { productId: "", quantity: 1, unitPrice: null }]);
   const removeEditLine = (i: number) =>
     setEditLines((arr) => arr.filter((_, idx) => idx !== i));
 
+  const editEffectivePrice = (l: EditLine): number => {
+    if (l.unitPrice != null) return l.unitPrice;
+    const p = productMap.get(l.productId);
+    return p ? p.price : 0;
+  };
+
   const editTotal = useMemo(() => {
-    return editLines.reduce((sum, l) => {
-      const p = productMap.get(l.productId);
-      if (!p) return sum;
-      return sum + p.price * (l.quantity || 0);
-    }, 0);
+    return editLines.reduce(
+      (sum, l) => sum + editEffectivePrice(l) * (l.quantity || 0),
+      0,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editLines, productMap]);
 
   const saveEdit = async (id: string) => {
@@ -181,6 +203,8 @@ export default function AdminOrdersPage() {
           items: valid.map((l) => ({
             productId: l.productId,
             quantity: Number(l.quantity),
+            // Send the price only when explicitly overridden.
+            ...(l.unitPrice != null ? { unitPrice: Number(l.unitPrice) } : {}),
           })),
         }),
       });
@@ -319,7 +343,10 @@ export default function AdminOrdersPage() {
                           <tbody className="divide-y divide-zinc-100">
                             {editLines.map((l, i) => {
                               const p = productMap.get(l.productId);
-                              const lineTotal = p ? p.price * (l.quantity || 0) : 0;
+                              const price = editEffectivePrice(l);
+                              const lineTotal = price * (l.quantity || 0);
+                              const overridden =
+                                l.unitPrice != null && p != null && l.unitPrice !== p.price;
                               return (
                                 <tr key={i}>
                                   <td className="px-2 py-2 min-w-[180px]">
@@ -330,7 +357,7 @@ export default function AdminOrdersPage() {
                                         hint: pp.price.toFixed(2),
                                       }))}
                                       value={l.productId}
-                                      onChange={(id) => updateEditLine(i, { productId: id })}
+                                      onChange={(id) => updateEditLineProduct(i, id)}
                                       placeholder="Search products…"
                                     />
                                   </td>
@@ -347,8 +374,26 @@ export default function AdminOrdersPage() {
                                       }
                                     />
                                   </td>
-                                  <td className="px-2 py-2 text-right text-zinc-600">
-                                    {p ? p.price.toFixed(2) : "—"}
+                                  <td className="px-2 py-2 text-right">
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      step="0.01"
+                                      className="h-9 w-24 text-right"
+                                      value={p ? price : ""}
+                                      disabled={!p}
+                                      onChange={(e) => {
+                                        const v = e.target.value;
+                                        updateEditLine(i, {
+                                          unitPrice: v === "" ? 0 : Number(v),
+                                        });
+                                      }}
+                                    />
+                                    {overridden && p && (
+                                      <div className="mt-0.5 text-[10px] text-amber-700">
+                                        List: {p.price.toFixed(2)}
+                                      </div>
+                                    )}
                                   </td>
                                   <td className="px-2 py-2 text-right font-medium">
                                     {lineTotal.toFixed(2)}

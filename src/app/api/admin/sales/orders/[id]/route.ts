@@ -81,6 +81,9 @@ const PutSchema = z.object({
       z.object({
         productId: z.string().min(1),
         quantity: z.number().int().positive(),
+        // Optional per-line price override (negotiated/offered price).
+        // Falls back to product catalogue price when omitted.
+        unitPrice: z.number().nonnegative().optional(),
       }),
     )
     .min(1, "At least one item is required"),
@@ -124,11 +127,12 @@ export async function PUT(
 
   const itemsData = body.data.items.map((it) => {
     const p = productMap.get(it.productId)!;
-    const lineTotal = Number((p.price * it.quantity).toFixed(2));
+    const unitPrice = it.unitPrice != null ? Number(it.unitPrice) : p.price;
+    const lineTotal = Number((unitPrice * it.quantity).toFixed(2));
     return {
       productId: p.id,
       productName: p.name,
-      unitPrice: p.price,
+      unitPrice,
       quantity: it.quantity,
       lineTotal,
     };

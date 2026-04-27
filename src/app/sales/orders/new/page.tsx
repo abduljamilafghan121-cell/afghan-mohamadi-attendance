@@ -15,7 +15,9 @@ import { getToken } from "../../../../lib/clientAuth";
 
 type Shop = { id: string; name: string };
 type Product = { id: string; name: string; price: number };
-type Line = { productId: string; quantity: number };
+// `unitPrice` is the offered/agreed price for this line. When the user
+// hasn't touched it, we keep it in sync with the product's catalogue price.
+type Line = { productId: string; quantity: number; unitPrice: number | null };
 
 export default function NewOrderPage() {
   const router = useRouter();
@@ -26,7 +28,9 @@ export default function NewOrderPage() {
   const [shopId, setShopId] = useState("");
   const [paymentType, setPaymentType] = useState<"cash" | "credit">("cash");
   const [notes, setNotes] = useState("");
-  const [lines, setLines] = useState<Line[]>([{ productId: "", quantity: 1 }]);
+  const [lines, setLines] = useState<Line[]>([
+    { productId: "", quantity: 1, unitPrice: null },
+  ]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -45,18 +49,29 @@ export default function NewOrderPage() {
 
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
+  // Effective unit price for a line: explicit override OR product catalogue price.
+  const effectivePrice = (l: Line): number => {
+    if (l.unitPrice != null) return l.unitPrice;
+    const p = productMap.get(l.productId);
+    return p ? p.price : 0;
+  };
+
   const total = useMemo(() => {
-    return lines.reduce((sum, l) => {
-      const p = productMap.get(l.productId);
-      if (!p) return sum;
-      return sum + p.price * (l.quantity || 0);
-    }, 0);
+    return lines.reduce((sum, l) => sum + effectivePrice(l) * (l.quantity || 0), 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lines, productMap]);
 
   const updateLine = (idx: number, patch: Partial<Line>) => {
     setLines((arr) => arr.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
   };
-  const addLine = () => setLines((arr) => [...arr, { productId: "", quantity: 1 }]);
+  // When the product changes we reset any custom price back to the catalogue
+  // price for that product (so the user explicitly opts-in to overriding).
+  const updateLineProduct = (idx: number, productId: string) =>
+    setLines((arr) =>
+      arr.map((l, i) => (i === idx ? { ...l, productId, unitPrice: null } : l)),
+    );
+  const addLine = () =>
+    setLines((arr) => [...arr, { productId: "", quantity: 1, unitPrice: null }]);
   const removeLine = (idx: number) => setLines((arr) => arr.filter((_, i) => i !== idx));
 
   const submit = async () => {
@@ -79,7 +94,12 @@ export default function NewOrderPage() {
           shopId,
           paymentType,
           notes: notes || null,
-          items: validLines.map((l) => ({ productId: l.productId, quantity: Number(l.quantity) })),
+          items: validLines.map((l) => ({
+            productId: l.productId,
+            quantity: Number(l.quantity),
+            // Only send unitPrice if the user explicitly overrode it.
+            ...(l.unitPrice != null ? { unitPrice: Number(l.unitPrice) } : {}),
+          })),
         }),
       });
       setSuccess("Order submitted — pending admin approval");
@@ -139,7 +159,9 @@ export default function NewOrderPage() {
                   <tbody className="divide-y divide-zinc-100">
                     {lines.map((l, i) => {
                       const p = productMap.get(l.productId);
-                      const lineTotal = p ? p.price * (l.quantity || 0) : 0;
+                      const price = effectivePrice(l);
+                      const lineTotal = price * (l.quantity || 0);
+                      const overridden = l.unitPrice != null && p != null && l.unitPrice !== p.price;
                       return (
                         <tr key={i} className="align-middle">
                           <td className="px-2 py-2 min-w-[180px]">
@@ -150,7 +172,7 @@ export default function NewOrderPage() {
                                 hint: pp.price.toFixed(2),
                               }))}
                               value={l.productId}
-                              onChange={(id) => updateLine(i, { productId: id })}
+                              onChange={(id) => updateLineProduct(i, id)}
                               placeholder="Search products…"
                             />
                           </td>
@@ -163,8 +185,26 @@ export default function NewOrderPage() {
                               onChange={(e) => updateLine(i, { quantity: parseInt(e.target.value, 10) || 0 })}
                             />
                           </td>
-                          <td className="px-2 py-2 text-right text-zinc-600">
-                            {p ? p.price.toFixed(2) : "—"}
+                          <td className="px-2 py-2 text-right">
+                            <Input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              className="h-10 w-24 text-right"
+                              value={p ? price : ""}
+                              disabled={!p}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                updateLine(i, {
+                                  unitPrice: v === "" ? 0 : Number(v),
+                                });
+                              }}
+                            />
+                            {overridden && p && (
+                              <div className="mt-0.5 text-[10px] text-amber-700">
+                                List: {p.price.toFixed(2)}
+                              </div>
+                            )}
                           </td>
                           <td className="px-2 py-2 text-right font-medium text-zinc-800">
                             {lineTotal.toFixed(2)}
