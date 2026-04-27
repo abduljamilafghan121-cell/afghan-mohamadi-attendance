@@ -31,7 +31,10 @@ export async function GET(req: Request) {
     prisma.order.findMany({
       where: { userId: auth.user.id, createdAt: { gte: start, lt: end } },
       orderBy: { createdAt: "asc" },
-      include: { shop: { select: { id: true, name: true } }, items: true },
+      include: {
+        shop: { select: { id: true, name: true, phone: true } },
+        items: true,
+      },
     }),
     prisma.payment.findMany({
       where: { userId: auth.user.id, createdAt: { gte: start, lt: end } },
@@ -41,12 +44,17 @@ export async function GET(req: Request) {
   ]);
 
   const totalVisits = visits.length;
-  const totalOrdersValue = Number(orders.reduce((s, o) => s + o.total, 0).toFixed(2));
+  // Sales totals only count approved + dispatched orders.
+  // Pending orders aren't sales yet; rejected orders never count.
+  const countedOrders = orders.filter(
+    (o) => o.status === "approved" || o.status === "dispatched",
+  );
+  const totalOrdersValue = Number(countedOrders.reduce((s, o) => s + o.total, 0).toFixed(2));
   const cashOrders = Number(
-    orders.filter((o) => o.paymentType === "cash").reduce((s, o) => s + o.total, 0).toFixed(2),
+    countedOrders.filter((o) => o.paymentType === "cash").reduce((s, o) => s + o.total, 0).toFixed(2),
   );
   const creditOrders = Number(
-    orders.filter((o) => o.paymentType === "credit").reduce((s, o) => s + o.total, 0).toFixed(2),
+    countedOrders.filter((o) => o.paymentType === "credit").reduce((s, o) => s + o.total, 0).toFixed(2),
   );
   const totalCollections = Number(payments.reduce((s, p) => s + p.amount, 0).toFixed(2));
 

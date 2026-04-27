@@ -22,7 +22,20 @@ type Summary = {
 type VisitProduct = { id: string; productName: string; offeredPrice: number | null; discussion: string | null; interest: string | null };
 type Visit = { id: string; visitDate: string; customerType: string; notes: string | null; shop: { id: string; name: string }; products: VisitProduct[] };
 type OrderItem = { id: string; productName: string; quantity: number; unitPrice: number; lineTotal: number };
-type Order = { id: string; createdAt: string; total: number; paymentType: string; shop: { id: string; name: string }; items: OrderItem[] };
+type OrderStatus = "pending" | "approved" | "rejected" | "dispatched";
+type MessageStatus = "not_attempted" | "link_opened" | "invalid_phone";
+type Order = {
+  id: string;
+  createdAt: string;
+  total: number;
+  paymentType: string;
+  status: OrderStatus;
+  messageStatus: MessageStatus;
+  messageReason: string | null;
+  dispatchedAt: string | null;
+  shop: { id: string; name: string; phone: string | null };
+  items: OrderItem[];
+};
 type Payment = { id: string; createdAt: string; customerName: string; amount: number; method: string; shop: { id: string; name: string } | null };
 type Shop = { id: string; name: string };
 
@@ -43,6 +56,35 @@ export default function MyReportPage() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dispatchingId, setDispatchingId] = useState<string | null>(null);
+  const [dispatchMsg, setDispatchMsg] = useState<string | null>(null);
+
+  const dispatchOrder = async (orderId: string) => {
+    setDispatchingId(orderId);
+    setDispatchMsg(null);
+    setError(null);
+    try {
+      const r = await apiFetch<{
+        success: boolean;
+        messageStatus: MessageStatus;
+        messageReason: string | null;
+        whatsappUrl: string | null;
+      }>(`/api/sales/orders/${orderId}/dispatch`, { method: "POST" });
+      if (r.whatsappUrl) {
+        window.open(r.whatsappUrl, "_blank", "noopener,noreferrer");
+        setDispatchMsg("Order dispatched. WhatsApp opened — press Send to notify the customer.");
+      } else {
+        setDispatchMsg(
+          `Order marked as dispatched, but WhatsApp message could not be prepared: ${r.messageReason ?? "invalid phone number"}`,
+        );
+      }
+      await load();
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to dispatch");
+    } finally {
+      setDispatchingId(null);
+    }
+  };
 
   useEffect(() => {
     if (!token) router.push("/login");
@@ -99,6 +141,11 @@ export default function MyReportPage() {
         </Card>
 
         {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+        {dispatchMsg && (
+          <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
+            {dispatchMsg}
+          </div>
+        )}
 
         {summary && (
           <Card title="Summary">
@@ -135,12 +182,22 @@ export default function MyReportPage() {
             <div className="space-y-2 text-sm">
               {orders.map((o) => (
                 <div key={o.id} className="rounded-xl border border-zinc-200 p-3">
-                  <div className="flex justify-between">
-                    <span className="font-medium">{o.shop.name}</span>
-                    <span className="font-semibold">{o.total.toFixed(2)}</span>
-                  </div>
-                  <div className="text-xs text-zinc-500">
-                    {new Date(o.createdAt).toLocaleTimeString()} · {o.paymentType.toUpperCase()}
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <span className="font-medium">{o.shop.name}</span>
+                      <div className="text-xs text-zinc-500">
+                        {new Date(o.createdAt).toLocaleTimeString()} · {o.paymentType.toUpperCase()}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-semibold">{o.total.toFixed(2)}</span>
+                      <div className="mt-1 flex flex-wrap items-center justify-end gap-1">
+                        <StatusBadge status={o.status} />
+                        {o.status === "dispatched" && (
+                          <MessagePill status={o.messageStatus} reason={o.messageReason} />
+                        )}
+                      </div>
+                    </div>
                   </div>
                   <ul className="mt-2 text-xs text-zinc-600">
                     {o.items.map((it) => (
@@ -149,6 +206,17 @@ export default function MyReportPage() {
                       </li>
                     ))}
                   </ul>
+                  {o.status === "approved" && (
+                    <div className="mt-2 flex justify-end">
+                      <Button
+                        onClick={() => dispatchOrder(o.id)}
+                        disabled={dispatchingId === o.id}
+                        className="h-8 px-3 text-xs"
+                      >
+                        {dispatchingId === o.id ? "Dispatching…" : "Dispatch & notify customer"}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -220,5 +288,37 @@ function Stat({ label, value }: { label: string; value: number | string }) {
       <div className="text-[11px] uppercase tracking-wider text-zinc-500">{label}</div>
       <div className="mt-1 text-lg font-semibold text-zinc-900">{value}</div>
     </div>
+  );
+}
+
+function StatusBadge({ status }: { status: OrderStatus }) {
+  const map: Record<OrderStatus, string> = {
+    pending: "bg-amber-100 text-amber-800",
+    approved: "bg-emerald-100 text-emerald-800",
+    rejected: "bg-rose-100 text-rose-800",
+    dispatched: "bg-indigo-100 text-indigo-800",
+  };
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${map[status]}`}>
+      {status}
+    </span>
+  );
+}
+
+function MessagePill({
+  status,
+  reason,
+}: {
+  status: MessageStatus;
+  reason: string | null;
+}) {
+  if (status === "not_attempted") return null;
+  const isOk = status === "link_opened";
+  const cls = isOk ? "bg-indigo-50 text-indigo-700" : "bg-red-50 text-red-700";
+  const label = isOk ? "✓ message link opened" : "⚠ phone invalid";
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-[10px] ${cls}`} title={reason ?? ""}>
+      {label}
+    </span>
   );
 }

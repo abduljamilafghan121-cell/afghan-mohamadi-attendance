@@ -153,6 +153,42 @@ with a full Sales / Order / Collection module.
 - Admin UI: `/admin/activity-log` — table with colour-coded module badges,
   filterable by user, module, date range, and row limit. Accessible from sidebar.
 
+### Order Dispatch + WhatsApp Notification (Apr 2026)
+- **Concept**: After admin approval, the salesman (or admin) clicks "Dispatch &
+  notify customer". The system marks the order dispatched and opens WhatsApp
+  on the dispatcher's device with a bilingual (English + Pashto) message
+  pre-filled to the customer's phone. Free — no WhatsApp Business API.
+- Schema:
+  - `OrderApprovalStatus` enum extended with `dispatched`.
+  - New `OrderMessageStatus` enum: `not_attempted | link_opened | invalid_phone`.
+  - New fields on `Order`: `dispatchedAt`, `dispatchedById` (FK→User, set null),
+    `messageStatus` (default `not_attempted`), `messageReason`.
+  - Migration: `20260427180000_add_order_dispatch`.
+- Helpers:
+  - `src/lib/phone.ts` — `validatePhone(raw, defaultCountryCode='93')` strips
+    non-digits, drops leading 0, prepends country code, validates against
+    `/^93\d{9}$/`.
+  - `src/lib/whatsapp.ts` — `buildDispatchMessage()` (bilingual EN+PS) and
+    `buildWhatsappUrl(phone, msg)` → `https://wa.me/<phone>?text=...`.
+- Endpoint: `POST /api/sales/orders/[id]/dispatch` — allowed for admin OR
+  the salesman who created the order. Validates `status==="approved"`,
+  rejects if already dispatched. Updates DB transactionally; returns
+  `{ success, messageStatus, messageReason, whatsappUrl, order }`.
+  Frontend opens `whatsappUrl` in a new tab AFTER receiving the response.
+  Logs to `ActivityLog` (action `order_dispatched`) and notifies the
+  counterparty (admin → salesman, or salesman → admins).
+- UI:
+  - Admin `/admin/sales/orders` — added "Dispatched" tab; status badges now
+    include `dispatched` (indigo); message-status pill (✓ link opened / ⚠
+    phone invalid); Dispatch button on approved orders.
+  - Salesman `/sales/report` — per-order status badge + Dispatch button on
+    approved orders + message-status pill on dispatched orders.
+- **Sales totals exclude rejected orders** (and now correctly include
+  dispatched ones). Filter `status: { in: ["approved", "dispatched"] }`
+  applied in: `/api/admin/sales/dashboard`, `/api/admin/sales/reports`,
+  `/api/sales/my-report`, `/api/sales/customers/[id]/history`.
+  Pending orders also excluded from revenue (still shown in counts).
+
 ## Running
 
 ```

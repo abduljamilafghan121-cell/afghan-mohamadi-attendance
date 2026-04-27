@@ -14,7 +14,12 @@ export async function GET(req: Request) {
   );
 
   const where: any = {};
-  if (status === "pending" || status === "approved" || status === "rejected") {
+  if (
+    status === "pending" ||
+    status === "approved" ||
+    status === "rejected" ||
+    status === "dispatched"
+  ) {
     where.status = status;
   }
 
@@ -24,9 +29,10 @@ export async function GET(req: Request) {
     take: limit,
     include: {
       user: { select: { id: true, name: true, email: true } },
-      shop: { select: { id: true, name: true } },
+      shop: { select: { id: true, name: true, phone: true } },
       items: true,
       reviewedBy: { select: { id: true, name: true } },
+      dispatchedBy: { select: { id: true, name: true } },
     },
   });
 

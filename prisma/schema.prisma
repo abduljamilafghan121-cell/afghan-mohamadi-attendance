@@ -45,6 +45,13 @@ enum OrderApprovalStatus {
   pending
   approved
   rejected
+  dispatched
+}
+
+enum OrderMessageStatus {
+  not_attempted
+  link_opened
+  invalid_phone
 }
 
 enum LeaveType {
@@ -114,8 +121,9 @@ model User {
 
   shopsCreated   Shop[]    @relation("ShopCreatedBy")
   salesVisits      Visit[]   @relation("VisitUser")
-  salesOrders      Order[]   @relation("OrderUser")
+  salesOrders        Order[] @relation("OrderUser")
   salesOrdersDecided Order[] @relation("OrderReviewedBy")
+  salesOrdersDispatched Order[] @relation("OrderDispatchedBy")
   salesPayments    Payment[] @relation("PaymentUser")
 
   weeklyPlanTemplates        WeeklyPlanTemplate[] @relation("WeeklyPlanTemplateUser")
@@ -350,6 +358,20 @@ model Order {
   reviewedBy   User?              @relation("OrderReviewedBy", fields: [reviewedById], references: [id])
   reviewedAt   DateTime?
   reviewNotes  String?
+
+  // Dispatch tracking — set when an admin or the owning salesman marks the
+  // order as dispatched (i.e. handed off to delivery / customer).
+  dispatchedAt    DateTime?
+  dispatchedById  String?
+  dispatchedBy    User?              @relation("OrderDispatchedBy", fields: [dispatchedById], references: [id])
+
+  // WhatsApp notification status. We can't truly know if the customer
+  // received the message (the wa.me link only opens a draft on the
+  // dispatcher's device), so we track whether the link was generated
+  // and opened, and capture the reason when the phone was invalid.
+  messageStatus OrderMessageStatus @default(not_attempted)
+  messageReason String?
+
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
 

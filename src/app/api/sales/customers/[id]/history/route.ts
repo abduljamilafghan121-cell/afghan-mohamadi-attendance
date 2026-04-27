@@ -56,13 +56,16 @@ export async function GET(
     }),
   ]);
 
-  const approvedOrders = orders.filter((o) => o.status === "approved");
-  const totalSales = Number(approvedOrders.reduce((s, o) => s + o.total, 0).toFixed(2));
+  // Sales totals only count approved + dispatched orders (rejected/pending excluded).
+  const countedOrders = orders.filter(
+    (o) => o.status === "approved" || o.status === "dispatched",
+  );
+  const totalSales = Number(countedOrders.reduce((s, o) => s + o.total, 0).toFixed(2));
   const cashSales = Number(
-    approvedOrders.filter((o) => o.paymentType === "cash").reduce((s, o) => s + o.total, 0).toFixed(2),
+    countedOrders.filter((o) => o.paymentType === "cash").reduce((s, o) => s + o.total, 0).toFixed(2),
   );
   const creditSales = Number(
-    approvedOrders.filter((o) => o.paymentType === "credit").reduce((s, o) => s + o.total, 0).toFixed(2),
+    countedOrders.filter((o) => o.paymentType === "credit").reduce((s, o) => s + o.total, 0).toFixed(2),
   );
   const totalCollections = Number(payments.reduce((s, p) => s + p.amount, 0).toFixed(2));
   // Outstanding = credit sales not yet collected (simple approximation:

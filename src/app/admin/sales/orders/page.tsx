@@ -22,24 +22,31 @@ type Item = {
   quantity: number;
   lineTotal: number;
 };
+type OrderStatus = "pending" | "approved" | "rejected" | "dispatched";
+type MessageStatus = "not_attempted" | "link_opened" | "invalid_phone";
 type Order = {
   id: string;
   total: number;
   paymentType: string;
-  status: "pending" | "approved" | "rejected";
+  status: OrderStatus;
   notes: string | null;
   reviewNotes: string | null;
   reviewedAt: string | null;
+  dispatchedAt: string | null;
+  messageStatus: MessageStatus;
+  messageReason: string | null;
   createdAt: string;
   user: { id: string; name: string; email: string | null };
-  shop: { id: string; name: string };
+  shop: { id: string; name: string; phone: string | null };
   items: Item[];
   reviewedBy: { id: string; name: string } | null;
+  dispatchedBy: { id: string; name: string } | null;
 };
 
-const tabs: { key: "pending" | "approved" | "rejected"; label: string }[] = [
+const tabs: { key: OrderStatus; label: string }[] = [
   { key: "pending", label: "Pending" },
   { key: "approved", label: "Approved" },
+  { key: "dispatched", label: "Dispatched" },
   { key: "rejected", label: "Rejected" },
 ];
 
@@ -48,7 +55,7 @@ export default function AdminOrdersPage() {
   const token = typeof window !== "undefined" ? getToken() : null;
   const user = useMemo(() => (token ? parseJwt(token) : null), [token]);
 
-  const [status, setStatus] = useState<"pending" | "approved" | "rejected">("pending");
+  const [status, setStatus] = useState<OrderStatus>("pending");
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -56,6 +63,34 @@ export default function AdminOrdersPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
+  const [dispatchMsg, setDispatchMsg] = useState<string | null>(null);
+
+  const dispatchOrder = async (id: string) => {
+    setBusyId(id);
+    setDispatchMsg(null);
+    setError(null);
+    try {
+      const r = await apiFetch<{
+        success: boolean;
+        messageStatus: MessageStatus;
+        messageReason: string | null;
+        whatsappUrl: string | null;
+      }>(`/api/sales/orders/${id}/dispatch`, { method: "POST" });
+      if (r.whatsappUrl) {
+        window.open(r.whatsappUrl, "_blank", "noopener,noreferrer");
+        setDispatchMsg("Order dispatched. WhatsApp opened — press Send to notify the customer.");
+      } else {
+        setDispatchMsg(
+          `Order marked as dispatched, but WhatsApp message could not be prepared: ${r.messageReason ?? "invalid phone"}`,
+        );
+      }
+      await load();
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to dispatch");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLines, setEditLines] = useState<EditLine[]>([]);
@@ -210,6 +245,11 @@ export default function AdminOrdersPage() {
         {error && (
           <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>
         )}
+        {dispatchMsg && (
+          <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
+            {dispatchMsg}
+          </div>
+        )}
 
         {orders.length === 0 ? (
           <Card>
@@ -231,17 +271,35 @@ export default function AdminOrdersPage() {
                     </div>
                     <div className="text-right">
                       <div className="text-lg font-semibold">{o.total.toFixed(2)}</div>
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-xs ${
-                          o.status === "pending"
-                            ? "bg-amber-100 text-amber-800"
-                            : o.status === "approved"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {o.status}
-                      </span>
+                      <div className="mt-1 flex flex-wrap items-center justify-end gap-1">
+                        <span
+                          className={`inline-block rounded-full px-2 py-0.5 text-xs ${
+                            o.status === "pending"
+                              ? "bg-amber-100 text-amber-800"
+                              : o.status === "approved"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : o.status === "dispatched"
+                                  ? "bg-indigo-100 text-indigo-800"
+                                  : "bg-rose-100 text-rose-800"
+                          }`}
+                        >
+                          {o.status}
+                        </span>
+                        {o.status === "dispatched" && o.messageStatus !== "not_attempted" && (
+                          <span
+                            className={`inline-block rounded-full px-2 py-0.5 text-[10px] ${
+                              o.messageStatus === "link_opened"
+                                ? "bg-indigo-50 text-indigo-700"
+                                : "bg-red-50 text-red-700"
+                            }`}
+                            title={o.messageReason ?? ""}
+                          >
+                            {o.messageStatus === "link_opened"
+                              ? "✓ message link opened"
+                              : "⚠ phone invalid"}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -390,11 +448,34 @@ export default function AdminOrdersPage() {
                   )}
 
                   {o.status !== "pending" && (
-                    <p className="text-xs text-zinc-500">
-                      {o.status} by {o.reviewedBy?.name ?? "—"}
-                      {o.reviewedAt ? ` on ${fmt(o.reviewedAt)}` : ""}
-                      {o.reviewNotes ? ` • "${o.reviewNotes}"` : ""}
-                    </p>
+                    <div className="space-y-1 text-xs text-zinc-500">
+                      {(o.status === "approved" || o.status === "rejected" || o.status === "dispatched") && o.reviewedBy && (
+                        <p>
+                          {o.status === "dispatched" ? "approved" : o.status} by {o.reviewedBy?.name ?? "—"}
+                          {o.reviewedAt ? ` on ${fmt(o.reviewedAt)}` : ""}
+                          {o.reviewNotes ? ` • "${o.reviewNotes}"` : ""}
+                        </p>
+                      )}
+                      {o.status === "dispatched" && (
+                        <p>
+                          dispatched by {o.dispatchedBy?.name ?? "—"}
+                          {o.dispatchedAt ? ` on ${fmt(o.dispatchedAt)}` : ""}
+                          {o.messageReason ? ` • ${o.messageReason}` : ""}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {o.status === "approved" && (
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={() => dispatchOrder(o.id)}
+                        disabled={busyId === o.id}
+                        className="h-9 px-3 text-xs"
+                      >
+                        {busyId === o.id ? "Dispatching…" : "Dispatch & notify customer"}
+                      </Button>
+                    </div>
                   )}
 
                   {o.status === "pending" && editingId !== o.id && (
