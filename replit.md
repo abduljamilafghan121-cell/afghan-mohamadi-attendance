@@ -153,6 +153,27 @@ with a full Sales / Order / Collection module.
 - Admin UI: `/admin/activity-log` — table with colour-coded module badges,
   filterable by user, module, date range, and row limit. Accessible from sidebar.
 
+### Admin Customer CRUD + Visit Plan PDF Export (Apr 2026)
+- **Admin customer management**: `/admin/sales/customers` is now a full CRUD
+  screen (admin-only). Inline-row editing of `name`, `phone`, `address`,
+  `region`, plus an Active/Inactive toggle. Deactivation is preferred over
+  delete to preserve history (visits/orders/payments still reference the
+  shop). A "Show inactive" checkbox lets admins see and reactivate disabled
+  customers. Salesmen still cannot edit customers from their UI.
+- API: `PATCH /api/admin/sales/shops` extended to accept `name`, `phone`,
+  `address`, `regionId`, `isActive` (all optional). `GET` accepts
+  `?includeInactive=1`. No DB migration — all `Shop` columns already exist.
+- **Visit Plan PDF export**: per-salesman "Export PDF" button on
+  `/admin/sales/weekly-plans`. Builds a printable HTML report (same
+  print-to-PDF pattern as Attendance/Hours) with: org-name header, salesman
+  name, rotation cycle, summary boxes (cycle / active days / total customer
+  slots), then one table per week of the cycle showing each weekday's region,
+  customer count, and full customer list (chips). Empty days show
+  "— No visits —". Notes appear as amber callouts. Filename
+  `visit_plan_<SalesmanName>.html` → opens print dialog → Save as PDF.
+- Helper: HTML escaping done inline (`escHtml`) for safe customer names. Org
+  title fetched from `/api/org` (`org.title`).
+
 ### Per-line Price Override on Orders (Apr 2026)
 - During order creation (salesman) and order edit (admin), each line item now
   has an editable Price field that defaults to the product's catalogue price

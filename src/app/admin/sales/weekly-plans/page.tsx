@@ -8,9 +8,19 @@ import { Card } from "../../../../components/ui/Card";
 import { Button } from "../../../../components/ui/Button";
 import { apiFetch } from "../../../../lib/clientApi";
 import { getToken, parseJwt } from "../../../../lib/clientAuth";
+import { exportHtmlReport } from "../../../../lib/exportUtils";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAYS_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+// Tiny HTML escape so customer names with special chars never break the PDF.
+const escHtml = (s: string) =>
+  s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
 const CYCLE_OPTIONS = [
   { value: 1, label: "Weekly (1)" },
@@ -48,6 +58,7 @@ export default function AdminWeeklyPlansPage() {
   const [regions, setRegions] = useState<Region[]>([]);
   const [allShops, setAllShops] = useState<Shop[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [orgName, setOrgName] = useState("");
   const [editor, setEditor] = useState<{
     userId: string;
     weekday: number;
@@ -66,16 +77,18 @@ export default function AdminWeeklyPlansPage() {
 
   const load = async () => {
     try {
-      const [u, r, s, t] = await Promise.all([
+      const [u, r, s, t, o] = await Promise.all([
         apiFetch<{ users: SUser[] }>("/api/admin/sales/users"),
         apiFetch<{ regions: Region[] }>("/api/sales/regions"),
         apiFetch<{ shops: Shop[] }>("/api/admin/sales/shops"),
         apiFetch<{ templates: Template[] }>("/api/admin/sales/weekly-plans"),
+        apiFetch<{ org?: { title?: string } }>("/api/org").catch(() => ({ org: { title: "" } })),
       ]);
       setUsers(u.users);
       setRegions(r.regions);
       setAllShops(s.shops);
       setTemplates(t.templates);
+      setOrgName(o.org?.title ?? "");
     } catch (e: any) {
       setError(e?.message ?? "Failed");
     }
@@ -176,6 +189,123 @@ export default function AdminWeeklyPlansPage() {
     }
   };
 
+  // Build a printable HTML "Visit Plan" report for one salesman.
+  // Layout: header (org + salesman + cycle), then one table per cycle week,
+  // each table has a row per weekday showing the assigned region and the full
+  // list of customers for that day. Empty days are shown as "— No visits —".
+  const exportUserPlanPdf = async (u: SUser) => {
+    try {
+      const cycle = u.planCycleWeeks || 1;
+      const userTpls = templates.filter((t) => t.userId === u.id);
+      const totalCustomers = userTpls.reduce((s, t) => s + t.customers.length, 0);
+      const activeDays = userTpls.filter((t) => t.customers.length > 0).length;
+
+      const cycleLabel =
+        cycle === 1 ? "Weekly" : cycle === 2 ? "Bi-weekly" : cycle === 4 ? "Monthly" : `${cycle}-week`;
+
+      const weekSections = Array.from({ length: cycle }, (_, i) => i + 1)
+        .map((wIdx) => {
+          const dayRows = WEEKDAYS_FULL.map((dayName, w) => {
+            const t = userTpls.find((x) => x.weekday === w && x.weekIndex === wIdx);
+            const region = t?.region?.name ?? "—";
+            const custs = t?.customers ?? [];
+            const custList =
+              custs.length === 0
+                ? `<span class="empty">— No visits —</span>`
+                : custs
+                    .map((c) => `<span class="cust">${escHtml(c.shop.name)}</span>`)
+                    .join(" ");
+            const notes = t?.notes ? `<div class="notes">Note: ${escHtml(t.notes)}</div>` : "";
+            return `
+              <tr>
+                <td class="day">${dayName}</td>
+                <td class="region">${escHtml(region)}</td>
+                <td class="count">${custs.length}</td>
+                <td class="customers">${custList}${notes}</td>
+              </tr>`;
+          }).join("");
+
+          const weekHeader =
+            cycle === 1
+              ? ""
+              : `<h3 class="week-h">Week ${wIdx} of ${cycle}</h3>`;
+
+          return `
+            ${weekHeader}
+            <table class="plan">
+              <thead>
+                <tr>
+                  <th style="width:90px">Day</th>
+                  <th style="width:140px">Region</th>
+                  <th style="width:50px">#</th>
+                  <th>Customers</th>
+                </tr>
+              </thead>
+              <tbody>${dayRows}</tbody>
+            </table>`;
+        })
+        .join("");
+
+      const orgTitle = orgName || "Organization";
+      const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Visit Plan - ${escHtml(u.name)} - ${escHtml(orgTitle)}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #111; padding: 32px; font-size: 12px; }
+    .header { text-align: center; border-bottom: 2px solid #111; padding-bottom: 16px; margin-bottom: 20px; }
+    .header h1 { font-size: 22px; font-weight: bold; letter-spacing: 1px; }
+    .header h2 { font-size: 14px; color: #555; margin-top: 4px; font-weight: normal; }
+    .header .filter { font-size: 11px; color: #777; margin-top: 6px; }
+    .summary { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .summary-box { border: 1px solid #ddd; border-radius: 6px; padding: 10px 16px; min-width: 100px; text-align: center; }
+    .summary-box .label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+    .summary-box .value { font-size: 20px; font-weight: bold; margin-top: 2px; color: #2563eb; }
+    .week-h { font-size: 13px; font-weight: bold; color: #1e40af; margin: 18px 0 6px; padding: 4px 8px; background: #eff6ff; border-left: 3px solid #2563eb; }
+    table.plan { width: 100%; border-collapse: collapse; margin-top: 4px; page-break-inside: auto; }
+    table.plan th { background: #f3f4f6; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 10px; text-align: left; border-bottom: 2px solid #ddd; }
+    table.plan td { padding: 8px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+    table.plan tr:nth-child(even) td { background: #fafafa; }
+    table.plan tr { page-break-inside: avoid; }
+    td.day { font-weight: bold; color: #111; white-space: nowrap; }
+    td.region { color: #1e3a8a; font-weight: 600; }
+    td.count { text-align: center; color: #555; font-weight: 600; }
+    td.customers { line-height: 1.7; }
+    .cust { display: inline-block; background: #eff6ff; color: #1e3a8a; padding: 2px 8px; border-radius: 4px; margin: 2px 3px 2px 0; font-size: 11px; }
+    .empty { color: #aaa; font-style: italic; }
+    .notes { margin-top: 4px; font-size: 10px; color: #92400e; background: #fef3c7; padding: 3px 6px; border-radius: 3px; display: inline-block; }
+    .footer { margin-top: 24px; font-size: 10px; color: #aaa; text-align: center; border-top: 1px solid #eee; padding-top: 12px; }
+    @media print {
+      body { padding: 16px; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${escHtml(orgTitle)}</h1>
+    <h2>Weekly Visit Plan — ${escHtml(u.name)}</h2>
+    <div class="filter">Rotation cycle: ${cycleLabel} (${cycle} week${cycle === 1 ? "" : "s"})</div>
+  </div>
+  <div class="summary">
+    <div class="summary-box"><div class="label">Cycle</div><div class="value">${cycleLabel}</div></div>
+    <div class="summary-box"><div class="label">Active Days</div><div class="value">${activeDays}</div></div>
+    <div class="summary-box"><div class="label">Total Customer Slots</div><div class="value">${totalCustomers}</div></div>
+  </div>
+  ${weekSections}
+  <div class="footer">Generated on ${new Date().toLocaleString()} &nbsp;|&nbsp; ${escHtml(orgTitle)} Sales Module</div>
+</body>
+</html>`;
+
+      const safeName = u.name.replace(/[^a-z0-9]+/gi, "_");
+      await exportHtmlReport(`visit_plan_${safeName}`, html);
+    } catch (e: any) {
+      alert(e?.message ?? "Export failed");
+    }
+  };
+
   return (
     <AppShell>
       <div className="space-y-4">
@@ -193,7 +323,7 @@ export default function AdminWeeklyPlansPage() {
               Regions
             </Link>
             <Link href="/admin/sales/customers" className="text-zinc-600 hover:underline">
-              Customer regions
+              Customers
             </Link>
             <Link href="/admin/sales/plans" className="text-zinc-600 hover:underline">
               Daily plans
@@ -233,17 +363,27 @@ export default function AdminWeeklyPlansPage() {
                             {u.name}
                           </td>
                           <td rowSpan={cycle} className="px-2 py-2 align-top">
-                            <select
-                              value={cycle}
-                              onChange={(e) => changeCycle(u, Number(e.target.value))}
-                              className="h-8 rounded-lg border border-zinc-300 bg-white px-2 text-xs"
-                            >
-                              {CYCLE_OPTIONS.map((o) => (
-                                <option key={o.value} value={o.value}>
-                                  {o.label}
-                                </option>
-                              ))}
-                            </select>
+                            <div className="flex flex-col gap-1.5">
+                              <select
+                                value={cycle}
+                                onChange={(e) => changeCycle(u, Number(e.target.value))}
+                                className="h-8 rounded-lg border border-zinc-300 bg-white px-2 text-xs"
+                              >
+                                {CYCLE_OPTIONS.map((o) => (
+                                  <option key={o.value} value={o.value}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => exportUserPlanPdf(u)}
+                                className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50"
+                                title="Export this salesman's full visit plan as PDF"
+                              >
+                                Export PDF
+                              </button>
+                            </div>
                           </td>
                         </>
                       ) : null}
