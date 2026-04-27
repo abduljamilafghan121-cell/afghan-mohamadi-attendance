@@ -12,7 +12,13 @@ import { getToken, parseJwt } from "../../../../lib/clientAuth";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAYS_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-type SUser = { id: string; name: string };
+const CYCLE_OPTIONS = [
+  { value: 1, label: "Weekly (1)" },
+  { value: 2, label: "Bi-weekly (2)" },
+  { value: 4, label: "Monthly (4)" },
+];
+
+type SUser = { id: string; name: string; planCycleWeeks: number };
 type Region = { id: string; name: string };
 type Shop = {
   id: string;
@@ -24,10 +30,11 @@ type Template = {
   id: string;
   userId: string;
   weekday: number;
+  weekIndex: number;
   regionId: string | null;
   notes: string | null;
   isActive: boolean;
-  user: { id: string; name: string };
+  user: { id: string; name: string; planCycleWeeks: number };
   region: { id: string; name: string } | null;
   customers: { shopId: string; shop: { id: string; name: string } }[];
 };
@@ -44,6 +51,7 @@ export default function AdminWeeklyPlansPage() {
   const [editor, setEditor] = useState<{
     userId: string;
     weekday: number;
+    weekIndex: number;
     regionId: string | null;
     notes: string;
     shopIds: Set<string>;
@@ -79,15 +87,16 @@ export default function AdminWeeklyPlansPage() {
 
   const cellMap = useMemo(() => {
     const m = new Map<string, Template>();
-    for (const t of templates) m.set(`${t.userId}_${t.weekday}`, t);
+    for (const t of templates) m.set(`${t.userId}_${t.weekday}_${t.weekIndex}`, t);
     return m;
   }, [templates]);
 
-  const openEditor = (userId: string, weekday: number) => {
-    const existing = cellMap.get(`${userId}_${weekday}`);
+  const openEditor = (userId: string, weekday: number, weekIndex: number) => {
+    const existing = cellMap.get(`${userId}_${weekday}_${weekIndex}`);
     setEditor({
       userId,
       weekday,
+      weekIndex,
       regionId: existing?.regionId ?? null,
       notes: existing?.notes ?? "",
       shopIds: new Set(existing?.customers.map((c) => c.shopId) ?? []),
@@ -110,6 +119,7 @@ export default function AdminWeeklyPlansPage() {
         body: JSON.stringify({
           userId: editor.userId,
           weekday: editor.weekday,
+          weekIndex: editor.weekIndex,
           regionId: editor.regionId,
           notes: editor.notes || null,
           shopIds: Array.from(editor.shopIds),
@@ -126,18 +136,43 @@ export default function AdminWeeklyPlansPage() {
 
   const remove = async () => {
     if (!editor) return;
-    const existing = cellMap.get(`${editor.userId}_${editor.weekday}`);
+    const existing = cellMap.get(`${editor.userId}_${editor.weekday}_${editor.weekIndex}`);
     if (!existing) {
       setEditor(null);
       return;
     }
-    if (!confirm("Delete this weekday template? Future plans will no longer auto-generate.")) return;
+    if (!confirm("Delete this template? Future plans will no longer auto-generate for this slot.")) return;
     try {
       await apiFetch(`/api/admin/sales/weekly-plans?id=${existing.id}`, { method: "DELETE" });
       setEditor(null);
       await load();
     } catch (e: any) {
       setError(e?.message ?? "Failed");
+    }
+  };
+
+  const changeCycle = async (u: SUser, newCycle: number) => {
+    if (newCycle === u.planCycleWeeks) return;
+    if (newCycle < u.planCycleWeeks) {
+      const dropped = templates.filter(
+        (t) => t.userId === u.id && t.weekIndex > newCycle,
+      );
+      if (dropped.length > 0) {
+        const ok = confirm(
+          `Switching ${u.name} to a ${newCycle}-week cycle will delete ${dropped.length} template${dropped.length === 1 ? "" : "s"} (Week ${newCycle + 1}–${u.planCycleWeeks}). Continue?`,
+        );
+        if (!ok) return;
+      }
+    }
+    setError(null);
+    try {
+      await apiFetch("/api/admin/sales/users", {
+        method: "PATCH",
+        body: JSON.stringify({ id: u.id, planCycleWeeks: newCycle }),
+      });
+      await load();
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to change cycle");
     }
   };
 
@@ -148,8 +183,9 @@ export default function AdminWeeklyPlansPage() {
           <div>
             <h1 className="text-xl font-semibold text-zinc-900">Weekly Visit Plans</h1>
             <p className="mt-1 text-sm text-zinc-600">
-              Set each salesman's weekly route once. The system creates each day's plan
-              automatically.
+              Set each salesman's route once. Pick a rotation cycle (Weekly /
+              Bi-weekly / Monthly) when one week isn't enough to cover all
+              their customers — the system picks the right week automatically.
             </p>
           </div>
           <div className="flex gap-2 text-sm">
@@ -173,6 +209,8 @@ export default function AdminWeeklyPlansPage() {
               <thead>
                 <tr className="text-left text-xs uppercase text-zinc-500">
                   <th className="sticky left-0 z-10 bg-white py-2 pr-3">Salesman</th>
+                  <th className="px-2 py-2">Cycle</th>
+                  <th className="px-2 py-2">Week</th>
                   {WEEKDAYS.map((w, i) => (
                     <th key={i} className="px-2 py-2 text-center">
                       {w}
@@ -181,52 +219,84 @@ export default function AdminWeeklyPlansPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {users.map((u) => (
-                  <tr key={u.id}>
-                    <td className="sticky left-0 z-10 bg-white py-2 pr-3 font-medium text-zinc-900">
-                      {u.name}
-                    </td>
-                    {WEEKDAYS.map((_, w) => {
-                      const t = cellMap.get(`${u.id}_${w}`);
-                      const has = !!t && t.customers.length > 0;
-                      return (
-                        <td key={w} className="px-1 py-1 align-top">
-                          <button
-                            onClick={() => openEditor(u.id, w)}
-                            className={`block w-full rounded-lg border p-2 text-left text-xs transition ${
-                              has
-                                ? "border-blue-200 bg-blue-50 hover:bg-blue-100"
-                                : "border-dashed border-zinc-300 bg-white text-zinc-500 hover:bg-zinc-50"
-                            }`}
+                {users.map((u) => {
+                  const cycle = u.planCycleWeeks || 1;
+                  const weekRows = Array.from({ length: cycle }, (_, i) => i + 1);
+                  return weekRows.map((wIdx) => (
+                    <tr key={`${u.id}_${wIdx}`} className={wIdx === 1 ? "" : "bg-zinc-50/40"}>
+                      {wIdx === 1 ? (
+                        <>
+                          <td
+                            rowSpan={cycle}
+                            className="sticky left-0 z-10 bg-white py-2 pr-3 align-top font-medium text-zinc-900"
                           >
-                            {has ? (
-                              <>
-                                <div className="font-semibold text-blue-900">
-                                  {t!.region?.name ?? "Mixed"}
-                                </div>
-                                <div className="text-blue-700">
-                                  {t!.customers.length} customer
-                                  {t!.customers.length === 1 ? "" : "s"}
-                                </div>
-                              </>
-                            ) : (
-                              <span>+ Add</span>
-                            )}
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                            {u.name}
+                          </td>
+                          <td rowSpan={cycle} className="px-2 py-2 align-top">
+                            <select
+                              value={cycle}
+                              onChange={(e) => changeCycle(u, Number(e.target.value))}
+                              className="h-8 rounded-lg border border-zinc-300 bg-white px-2 text-xs"
+                            >
+                              {CYCLE_OPTIONS.map((o) => (
+                                <option key={o.value} value={o.value}>
+                                  {o.label}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                        </>
+                      ) : null}
+                      <td className="px-2 py-1 text-xs font-semibold text-zinc-600">
+                        {cycle === 1 ? "—" : `Wk ${wIdx}`}
+                      </td>
+                      {WEEKDAYS.map((_, w) => {
+                        const t = cellMap.get(`${u.id}_${w}_${wIdx}`);
+                        const has = !!t && t.customers.length > 0;
+                        return (
+                          <td key={w} className="px-1 py-1 align-top">
+                            <button
+                              onClick={() => openEditor(u.id, w, wIdx)}
+                              className={`block w-full rounded-lg border p-2 text-left text-xs transition ${
+                                has
+                                  ? "border-blue-200 bg-blue-50 hover:bg-blue-100"
+                                  : "border-dashed border-zinc-300 bg-white text-zinc-500 hover:bg-zinc-50"
+                              }`}
+                            >
+                              {has ? (
+                                <>
+                                  <div className="font-semibold text-blue-900">
+                                    {t!.region?.name ?? "Mixed"}
+                                  </div>
+                                  <div className="text-blue-700">
+                                    {t!.customers.length} customer
+                                    {t!.customers.length === 1 ? "" : "s"}
+                                  </div>
+                                </>
+                              ) : (
+                                <span>+ Add</span>
+                              )}
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ));
+                })}
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="py-6 text-center text-sm text-zinc-500">
+                    <td colSpan={10} className="py-6 text-center text-sm text-zinc-500">
                       No users yet.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="mt-3 text-xs text-zinc-500">
+            Tip: With a Monthly (4-week) cycle, each weekday has four separate
+            slots — Week 1 / Week 2 / Week 3 / Week 4 — so a salesman with many
+            customers can rotate through them across the month.
           </div>
         </Card>
 
@@ -235,7 +305,13 @@ export default function AdminWeeklyPlansPage() {
             <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-zinc-900">
-                  {users.find((u) => u.id === editor.userId)?.name} — {WEEKDAYS_FULL[editor.weekday]}
+                  {users.find((u) => u.id === editor.userId)?.name} —{" "}
+                  {WEEKDAYS_FULL[editor.weekday]}
+                  {(() => {
+                    const u = users.find((x) => x.id === editor.userId);
+                    const c = u?.planCycleWeeks || 1;
+                    return c > 1 ? ` (Week ${editor.weekIndex} of ${c})` : "";
+                  })()}
                 </h2>
                 <button
                   onClick={() => setEditor(null)}
@@ -341,7 +417,7 @@ export default function AdminWeeklyPlansPage() {
 
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
                   <div>
-                    {cellMap.get(`${editor.userId}_${editor.weekday}`) && (
+                    {cellMap.get(`${editor.userId}_${editor.weekday}_${editor.weekIndex}`) && (
                       <Button variant="danger" onClick={remove} className="h-9 text-sm">
                         Delete template
                       </Button>

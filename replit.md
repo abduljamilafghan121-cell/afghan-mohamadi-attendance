@@ -61,6 +61,18 @@ with a full Sales / Order / Collection module.
   ("Saturday → Ahmed → Downtown region → these customers"). System
   auto-generates the actual `VisitPlan` rows for each day from the matching
   weekday template. One-off plans for special dates also supported.
+- **Rotation cycle (new — multi-week templates)**: Each user has
+  `User.planCycleWeeks` (1 = weekly default, 2 = bi-weekly, 4 = monthly).
+  Each `WeeklyPlanTemplate` has a `weekIndex` (1..planCycleWeeks). For users
+  with cycle > 1, the engine computes the date's "week-of-cycle" using a
+  fixed Sunday epoch (1970-01-04) and only uses the template whose
+  `weekIndex` matches. Lets a salesman with too many customers for one
+  week rotate them across 2 or 4 weeks. Helper:
+  `getWeekIndexForDate(date, cycleWeeks)` in `src/lib/visitPlans.ts`.
+  Migration: `20260427150000_add_plan_cycle_weeks` (default 1 keeps
+  existing setups unchanged). Cycle is changed via
+  `PATCH /api/admin/sales/users { id, planCycleWeeks }` which also drops
+  templates whose `weekIndex` no longer fits the new cycle.
 - Tables: `Region`, `WeeklyPlanTemplate`, `WeeklyPlanCustomer`, `VisitPlan`.
   Plus `Shop.regionId` and `Visit.planId` (back-link to plan).
 - Statuses: `pending` → `done` (auto-set when matching visit logged) /

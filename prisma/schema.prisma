@@ -81,6 +81,11 @@ model User {
   address    String?
   photoUrl   String?
 
+  // Length of the visit-plan rotation (in weeks). 1 = weekly (default),
+  // 2 = bi-weekly, 4 = monthly. Used by the visit-plan generation engine
+  // to pick the correct WeeklyPlanTemplate for the date's "week-of-cycle".
+  planCycleWeeks Int @default(1)
+
   managerId String?
   manager   User?   @relation("UserManager", fields: [managerId], references: [id])
   reports   User[]  @relation("UserManager")
@@ -185,6 +190,10 @@ model WeeklyPlanTemplate {
   userId      String
   user        User     @relation("WeeklyPlanTemplateUser", fields: [userId], references: [id], onDelete: Cascade)
   weekday     Int
+  // Which week of the user's rotation cycle this template applies to.
+  // 1-indexed. For users with planCycleWeeks=1, this is always 1.
+  // For planCycleWeeks=4 (monthly), templates can have weekIndex 1..4.
+  weekIndex   Int      @default(1)
   regionId    String?
   region      Region?  @relation(fields: [regionId], references: [id])
   notes       String?
@@ -197,8 +206,8 @@ model WeeklyPlanTemplate {
   customers WeeklyPlanCustomer[]
   plans     VisitPlan[]
 
-  @@unique([userId, weekday])
-  @@index([weekday])
+  @@unique([userId, weekday, weekIndex])
+  @@index([weekday, weekIndex])
 }
 
 model WeeklyPlanCustomer {

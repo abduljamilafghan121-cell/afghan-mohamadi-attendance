@@ -27,6 +27,39 @@ export function ymd(d: Date): string {
 }
 
 /**
+ * Compute which "week of the rotation cycle" a date falls into, given a
+ * cycle length in weeks. Returns a 1-indexed value in [1..cycleWeeks].
+ *
+ * Cycle anchor: Sunday 1970-01-04 (the first Sunday on or after the Unix
+ * epoch). This makes the calculation deterministic, timezone-agnostic
+ * (we use local-day boundaries consistent with the rest of this file),
+ * and stable across years.
+ *
+ * Examples (cycleWeeks = 4):
+ *   - Two consecutive Saturdays always land on consecutive week indices.
+ *   - The 5th Saturday in a calendar month wraps back to week 1 — by design,
+ *     the cycle is purely 4-weekly, NOT calendar-month aligned.
+ */
+export function getWeekIndexForDate(date: Date, cycleWeeks: number): number {
+  const c = Math.max(1, Math.floor(cycleWeeks || 1));
+  if (c === 1) return 1;
+
+  // Find the Sunday that starts this date's week (local time).
+  const day = startOfDay(date);
+  const sunday = new Date(day);
+  sunday.setDate(day.getDate() - day.getDay());
+
+  // Anchor: Sunday 1970-01-04 (local).
+  const anchor = new Date(1970, 0, 4);
+  const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+
+  // Round to nearest week to be robust against DST half-hour shifts.
+  const weeks = Math.round((sunday.getTime() - anchor.getTime()) / oneWeekMs);
+  const idx = ((weeks % c) + c) % c; // safe positive modulo
+  return idx + 1; // 1-indexed
+}
+
+/**
  * Ensure VisitPlan rows exist for the given user + date based on their
  * active WeeklyPlanTemplate matching the date's weekday.
  * - Creates pending plans for any template customers missing on that date.
@@ -85,13 +118,30 @@ export async function ensurePlansForDate(date: Date, userId?: string | null) {
   // for that date through the API (which checks WorkdayOverride per-user).
   if (holiday || isOfficeOffDay) return;
 
-  const templates = await prisma.weeklyPlanTemplate.findMany({
+  const candidateTemplates = await prisma.weeklyPlanTemplate.findMany({
     where: {
       weekday,
       isActive: true,
       ...(userId ? { userId } : {}),
     },
     include: { customers: true },
+  });
+
+  // Filter by each user's rotation cycle: only keep the template whose
+  // weekIndex matches today's "week-of-cycle" for that user.
+  const userIdsInCandidates = Array.from(new Set(candidateTemplates.map((t) => t.userId)));
+  const userCycles = userIdsInCandidates.length
+    ? await prisma.user.findMany({
+        where: { id: { in: userIdsInCandidates } },
+        select: { id: true, planCycleWeeks: true },
+      })
+    : [];
+  const cycleByUser = new Map(userCycles.map((u) => [u.id, u.planCycleWeeks || 1]));
+
+  const templates = candidateTemplates.filter((t) => {
+    const cycle = cycleByUser.get(t.userId) ?? 1;
+    const idx = getWeekIndexForDate(day, cycle);
+    return t.weekIndex === idx;
   });
 
   // Skip generation for any user with an approved leave covering this date.
@@ -154,13 +204,16 @@ export async function ensurePlansForDate(date: Date, userId?: string | null) {
 export async function syncTodayFromTemplate(templateId: string) {
   const tpl = await prisma.weeklyPlanTemplate.findUnique({
     where: { id: templateId },
-    include: { customers: true },
+    include: { customers: true, user: { select: { planCycleWeeks: true } } },
   });
   if (!tpl) return;
 
   const today = startOfDay(new Date());
   if (today.getDay() !== tpl.weekday) return;
   if (!tpl.isActive) return;
+  // Only cascade if today's week-of-cycle matches this template's weekIndex.
+  const cycle = tpl.user?.planCycleWeeks || 1;
+  if (getWeekIndexForDate(today, cycle) !== tpl.weekIndex) return;
 
   const todayPlans = await prisma.visitPlan.findMany({
     where: {

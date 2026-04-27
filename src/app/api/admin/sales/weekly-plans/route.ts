@@ -13,9 +13,9 @@ export async function GET(req: Request) {
 
   const templates = await prisma.weeklyPlanTemplate.findMany({
     where: { ...(userId ? { userId } : {}) },
-    orderBy: [{ userId: "asc" }, { weekday: "asc" }],
+    orderBy: [{ userId: "asc" }, { weekIndex: "asc" }, { weekday: "asc" }],
     include: {
-      user: { select: { id: true, name: true } },
+      user: { select: { id: true, name: true, planCycleWeeks: true } },
       region: { select: { id: true, name: true } },
       customers: {
         include: { shop: { select: { id: true, name: true } } },
@@ -29,6 +29,7 @@ export async function GET(req: Request) {
 const UpsertSchema = z.object({
   userId: z.string().min(1),
   weekday: z.number().int().min(0).max(6),
+  weekIndex: z.number().int().min(1).max(4).default(1),
   regionId: z.string().nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
   isActive: z.boolean().optional(),
@@ -44,11 +45,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const { userId, weekday, regionId, notes, isActive, shopIds } = body.data;
+  const { userId, weekday, weekIndex, regionId, notes, isActive, shopIds } = body.data;
 
-  // Verify user
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  // Verify user and that weekIndex fits inside their cycle.
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, planCycleWeeks: true },
+  });
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+  const cycle = user.planCycleWeeks || 1;
+  if (weekIndex > cycle) {
+    return NextResponse.json(
+      { error: `Week ${weekIndex} is outside this salesman's ${cycle}-week cycle` },
+      { status: 400 },
+    );
+  }
 
   // Verify shops
   if (shopIds.length > 0) {
@@ -64,7 +75,7 @@ export async function POST(req: Request) {
   // Upsert template + replace customer set
   const template = await prisma.$transaction(async (tx) => {
     const tpl = await tx.weeklyPlanTemplate.upsert({
-      where: { userId_weekday: { userId, weekday } },
+      where: { userId_weekday_weekIndex: { userId, weekday, weekIndex } },
       update: {
         regionId: regionId ?? null,
         notes: notes ?? null,
@@ -73,6 +84,7 @@ export async function POST(req: Request) {
       create: {
         userId,
         weekday,
+        weekIndex,
         regionId: regionId ?? null,
         notes: notes ?? null,
         isActive: isActive ?? true,
