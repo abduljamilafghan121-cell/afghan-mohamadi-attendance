@@ -145,7 +145,92 @@ export default function NewOrderPage() {
 
             <div>
               <label className="mb-1 block text-sm font-medium text-zinc-700">Items</label>
-              <div className="overflow-x-auto rounded-xl border border-zinc-200">
+
+              {/* Mobile (portrait) — stacked card per line so every field is visible. */}
+              <div className="space-y-3 sm:hidden">
+                {lines.map((l, i) => {
+                  const p = productMap.get(l.productId);
+                  const price = effectivePrice(l);
+                  const lineTotal = price * (l.quantity || 0);
+                  const overridden = l.unitPrice != null && p != null && l.unitPrice !== p.price;
+                  return (
+                    <div
+                      key={i}
+                      className="rounded-xl border border-zinc-200 bg-white p-3 space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                          Item {i + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeLine(i)}
+                          className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50"
+                          aria-label="Remove item"
+                        >
+                          ✕ Remove
+                        </button>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-zinc-600">Product</label>
+                        <Combobox
+                          options={products.map((pp) => ({
+                            id: pp.id,
+                            label: pp.name,
+                            hint: pp.price.toFixed(2),
+                          }))}
+                          value={l.productId}
+                          onChange={(id) => updateLineProduct(i, id)}
+                          placeholder="Search products…"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-zinc-600">Qty</label>
+                          <Input
+                            type="number"
+                            min={1}
+                            className="h-10 w-full"
+                            value={l.quantity}
+                            onChange={(e) =>
+                              updateLine(i, { quantity: parseInt(e.target.value, 10) || 0 })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-zinc-600">Price</label>
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            className="h-10 w-full text-right"
+                            value={p ? price : ""}
+                            disabled={!p}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              updateLine(i, { unitPrice: v === "" ? 0 : Number(v) });
+                            }}
+                          />
+                          {overridden && p && (
+                            <div className="mt-0.5 text-[10px] text-amber-700">
+                              List: {p.price.toFixed(2)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2">
+                        <span className="text-xs text-zinc-600">Line total</span>
+                        <span className="text-sm font-semibold text-zinc-900">
+                          {lineTotal.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Tablet & desktop — original table. */}
+              <div className="hidden sm:block overflow-x-auto rounded-xl border border-zinc-200">
                 <table className="min-w-full text-sm">
                   <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500">
                     <tr>

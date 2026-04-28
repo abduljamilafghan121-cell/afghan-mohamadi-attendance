@@ -187,6 +187,23 @@ with a full Sales / Order / Collection module.
   catalogue, an amber "List: X.XX" hint is shown beneath the price input.
 - No schema change required — `OrderItem.unitPrice` already existed.
 
+### Mobile-Portrait Layout for Order & Visit Pages (Apr 2026)
+- **Problem**: `/sales/orders/new` and `/sales/visits/new` rendered product
+  lines as horizontal tables (`min-w-[720px]` etc). On a portrait phone the
+  Price / Qty / Interest / Discussion columns were either off-screen or
+  required horizontal scroll, so users had to rotate to landscape to use
+  the form.
+- **Fix**: Both pages now render two layouts side-by-side and CSS picks
+  one with Tailwind responsive utilities:
+  - **`< sm` (mobile portrait)** → each product line is a stacked **card**
+    with labelled fields (`Item N` / `Product N` header, full-width
+    Product picker, two-column grid for Qty + Price (orders) or Offered
+    price + Interest (visits), full-width Discussion, large "✕ Remove"
+    button). All fields visible without scrolling sideways.
+  - **`≥ sm` (tablet & desktop)** → original table view is preserved
+    unchanged (`hidden sm:block`).
+- No data-model or API changes; pure CSS/markup duplication for clarity.
+
 ### WhatsApp Open — Cross-Platform Fix (Apr 2026)
 - **Problem**: `wa.me` is unreliable. On desktop it redirects to the
   `whatsapp://` scheme → `ERR_UNKNOWN_URL_SCHEME`. Inside in-app webviews
