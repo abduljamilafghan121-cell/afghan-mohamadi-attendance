@@ -187,19 +187,25 @@ with a full Sales / Order / Collection module.
   catalogue, an amber "List: X.XX" hint is shown beneath the price input.
 - No schema change required — `OrderItem.unitPrice` already existed.
 
-### WhatsApp Open — Desktop Compatibility Fix (Apr 2026)
-- **Problem**: Server returns canonical `https://wa.me/<phone>?text=...`. On
-  desktop browsers `wa.me` redirects to the `whatsapp://send/...` deep-link
-  scheme which most desktop browsers cannot resolve → user sees
-  `ERR_UNKNOWN_URL_SCHEME` and dispatch flow appears broken.
-- **Fix**: New helper `src/lib/clientWhatsapp.ts → openWhatsApp(waMeUrl)`.
-  Detects mobile UA (Android/iOS) → uses original `wa.me` URL (opens app
-  via OS). Desktop → rewrites to `https://web.whatsapp.com/send?phone=...&text=...`
-  so WhatsApp Web opens in a new tab and the message is pre-filled there.
-- Both dispatch UIs (`/sales/report`, `/admin/sales/orders`) updated to use
-  this helper instead of `window.open(r.whatsappUrl, ...)` directly.
-- Server contract unchanged — endpoint still returns `wa.me` URL; only the
-  client decides how to open it.
+### WhatsApp Open — Cross-Platform Fix (Apr 2026)
+- **Problem**: `wa.me` is unreliable. On desktop it redirects to the
+  `whatsapp://` scheme → `ERR_UNKNOWN_URL_SCHEME`. Inside in-app webviews
+  on phones (Replit mobile app, Facebook, Instagram, Telegram) the same
+  redirect is blocked and the user lands on a "Download WhatsApp" page
+  even though WhatsApp is installed.
+- **Fix**: `src/lib/clientWhatsapp.ts → openWhatsApp(waMeUrl)` detects the
+  platform and opens WhatsApp via the platform's native launch path:
+  - **Android**: `intent://send?phone=…&text=…#Intent;scheme=whatsapp;…;
+    S.browser_fallback_url=<wa.me>;end` — the OS launches WhatsApp /
+    WhatsApp Business directly even from inside an in-app webview, with
+    wa.me as a fallback if WhatsApp isn't installed.
+  - **iOS**: `whatsapp://send?phone=…&text=…` via `window.location.href`.
+  - **Desktop**: `https://web.whatsapp.com/send?phone=…&text=…` opened in
+    a new tab.
+- Both dispatch UIs (`/sales/report`, `/admin/sales/orders`) call this
+  helper instead of `window.open(r.whatsappUrl, ...)` directly.
+- Server contract unchanged — endpoint still returns the canonical
+  `wa.me` URL; only the client decides how to open it.
 
 ### Order Dispatch + WhatsApp Notification (Apr 2026)
 - **Concept**: After admin approval, the salesman (or admin) clicks "Dispatch &
