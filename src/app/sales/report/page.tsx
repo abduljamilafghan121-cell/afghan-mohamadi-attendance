@@ -9,7 +9,6 @@ import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { apiFetch } from "../../../lib/clientApi";
 import { getToken } from "../../../lib/clientAuth";
-import { openWhatsApp } from "../../../lib/clientWhatsapp";
 
 type Summary = {
   totalVisits: number;
@@ -57,36 +56,6 @@ export default function MyReportPage() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dispatchingId, setDispatchingId] = useState<string | null>(null);
-  const [dispatchMsg, setDispatchMsg] = useState<string | null>(null);
-
-  const dispatchOrder = async (orderId: string) => {
-    setDispatchingId(orderId);
-    setDispatchMsg(null);
-    setError(null);
-    try {
-      const r = await apiFetch<{
-        success: boolean;
-        messageStatus: MessageStatus;
-        messageReason: string | null;
-        whatsappUrl: string | null;
-      }>(`/api/sales/orders/${orderId}/dispatch`, { method: "POST" });
-      if (r.whatsappUrl) {
-        openWhatsApp(r.whatsappUrl);
-        setDispatchMsg("Order dispatched. WhatsApp opened — press Send to notify the customer.");
-      } else {
-        setDispatchMsg(
-          `Order marked as dispatched, but WhatsApp message could not be prepared: ${r.messageReason ?? "invalid phone number"}`,
-        );
-      }
-      await load();
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to dispatch");
-    } finally {
-      setDispatchingId(null);
-    }
-  };
-
   useEffect(() => {
     if (!token) router.push("/login");
   }, [token, router]);
@@ -142,11 +111,6 @@ export default function MyReportPage() {
         </Card>
 
         {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-        {dispatchMsg && (
-          <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
-            {dispatchMsg}
-          </div>
-        )}
 
         {summary && (
           <Card title="Summary">
@@ -209,13 +173,12 @@ export default function MyReportPage() {
                   </ul>
                   {o.status === "approved" && (
                     <div className="mt-2 flex justify-end">
-                      <Button
-                        onClick={() => dispatchOrder(o.id)}
-                        disabled={dispatchingId === o.id}
-                        className="h-8 px-3 text-xs"
+                      <Link
+                        href="/sales/dispatch"
+                        className="text-xs font-medium text-indigo-700 hover:underline"
                       >
-                        {dispatchingId === o.id ? "Dispatching…" : "Dispatch & notify customer"}
-                      </Button>
+                        Dispatch on Pending Dispatch page →
+                      </Link>
                     </div>
                   )}
                 </div>

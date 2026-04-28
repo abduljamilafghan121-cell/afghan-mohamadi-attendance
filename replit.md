@@ -187,19 +187,48 @@ with a full Sales / Order / Collection module.
   catalogue, an amber "List: X.XX" hint is shown beneath the price input.
 - No schema change required — `OrderItem.unitPrice` already existed.
 
-### Mobile-Portrait Layout for Order & Visit Pages (Apr 2026)
-- **Problem**: `/sales/orders/new` and `/sales/visits/new` rendered product
-  lines as horizontal tables (`min-w-[720px]` etc). On a portrait phone the
-  Price / Qty / Interest / Discussion columns were either off-screen or
-  required horizontal scroll, so users had to rotate to landscape to use
-  the form.
-- **Fix**: Both pages now render two layouts side-by-side and CSS picks
-  one with Tailwind responsive utilities:
-  - **`< sm` (mobile portrait)** → each product line is a stacked **card**
-    with labelled fields (`Item N` / `Product N` header, full-width
-    Product picker, two-column grid for Qty + Price (orders) or Offered
-    price + Interest (visits), full-width Discussion, large "✕ Remove"
-    button). All fields visible without scrolling sideways.
+### Dedicated "Pending Dispatch" Page for Salesman (Apr 2026)
+- **Concept**: Previously, approved-but-not-dispatched orders were mixed
+  into the salesman's daily report (`/sales/report`) — the dispatch button
+  sat next to visits, payments, etc. It was easy to miss, especially when
+  an order was approved on a different day than the salesman is viewing.
+- **Backend**: `GET /api/sales/orders/pending-dispatch`
+  (`src/app/api/sales/orders/pending-dispatch/route.ts`) returns the
+  current user's own orders with `status='approved'`, ordered by
+  `reviewedAt asc`. Not date-bounded — an order stays in the queue until
+  dispatched, regardless of when it was approved.
+- **UI**: New page `/sales/dispatch`
+  (`src/app/sales/dispatch/page.tsx`) showing one card per order with:
+  customer name, approval timestamp, customer phone, payment type, total,
+  full item table (mobile cards `< sm`, table `≥ sm`), notes, and a
+  prominent "Dispatch & notify customer" button. Reuses `openWhatsApp()`
+  helper for the WhatsApp link.
+- **Discoverability**: New "Pending Dispatch" tile on `/sales` home
+  (indigo) sits between New Order and Add Collection.
+- **Report page cleanup**: Removed the inline dispatch button from
+  `/sales/report` so the report stays a read-only summary. Approved
+  orders there now show a small "Dispatch on Pending Dispatch page →"
+  link instead, pointing the salesman at the dedicated screen. Unused
+  state (`dispatchingId`, `dispatchMsg`, `dispatchOrder`) and the
+  `openWhatsApp` import were removed from the report page.
+- No DB schema change — uses existing `Order.status` and `Order.userId`.
+
+### Mobile-Portrait Layout for Order, Visit & Admin-Order Pages (Apr 2026)
+- **Problem**: Three pages rendered product / line tables horizontally —
+  `/sales/orders/new`, `/sales/visits/new`, and `/admin/sales/orders` (the
+  admin approval screen, in BOTH view-mode and edit-mode tables). On a
+  portrait phone the Price / Qty / Interest / Discussion / Unit columns
+  were off-screen or required horizontal scroll, so users had to rotate
+  to landscape.
+- **Fix**: All five tables now render two layouts side-by-side and CSS
+  picks one with Tailwind responsive utilities:
+  - **`< sm` (mobile portrait)** → each line is a stacked **card** with
+    labelled fields. View-mode admin cards show a compact "Product / Total
+    / Qty · Unit" layout. Editable cards (new order, edit order) have an
+    `Item N` header, full-width Product picker, two-column Qty + Price
+    grid, and a "Line total" pill. Visit cards have Product, two-column
+    Offered price + Interest, and full-width Discussion. Each card has a
+    large "✕ Remove" button on top.
   - **`≥ sm` (tablet & desktop)** → original table view is preserved
     unchanged (`hidden sm:block`).
 - No data-model or API changes; pure CSS/markup duplication for clarity.
