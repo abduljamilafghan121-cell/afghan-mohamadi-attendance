@@ -10,6 +10,7 @@ import { Input } from "../../../../components/ui/Input";
 import { Combobox } from "../../../../components/ui/Combobox";
 import { apiFetch } from "../../../../lib/clientApi";
 import { getToken, parseJwt } from "../../../../lib/clientAuth";
+import { openWhatsApp } from "../../../../lib/clientWhatsapp";
 
 type Product = { id: string; name: string; price: number };
 // `unitPrice` is an explicit price override. When null, the line uses the
@@ -79,7 +80,7 @@ export default function AdminOrdersPage() {
         whatsappUrl: string | null;
       }>(`/api/sales/orders/${id}/dispatch`, { method: "POST" });
       if (r.whatsappUrl) {
-        window.open(r.whatsappUrl, "_blank", "noopener,noreferrer");
+        openWhatsApp(r.whatsappUrl);
         setDispatchMsg("Order dispatched. WhatsApp opened — press Send to notify the customer.");
       } else {
         setDispatchMsg(

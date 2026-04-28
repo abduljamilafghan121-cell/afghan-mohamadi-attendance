@@ -187,6 +187,20 @@ with a full Sales / Order / Collection module.
   catalogue, an amber "List: X.XX" hint is shown beneath the price input.
 - No schema change required — `OrderItem.unitPrice` already existed.
 
+### WhatsApp Open — Desktop Compatibility Fix (Apr 2026)
+- **Problem**: Server returns canonical `https://wa.me/<phone>?text=...`. On
+  desktop browsers `wa.me` redirects to the `whatsapp://send/...` deep-link
+  scheme which most desktop browsers cannot resolve → user sees
+  `ERR_UNKNOWN_URL_SCHEME` and dispatch flow appears broken.
+- **Fix**: New helper `src/lib/clientWhatsapp.ts → openWhatsApp(waMeUrl)`.
+  Detects mobile UA (Android/iOS) → uses original `wa.me` URL (opens app
+  via OS). Desktop → rewrites to `https://web.whatsapp.com/send?phone=...&text=...`
+  so WhatsApp Web opens in a new tab and the message is pre-filled there.
+- Both dispatch UIs (`/sales/report`, `/admin/sales/orders`) updated to use
+  this helper instead of `window.open(r.whatsappUrl, ...)` directly.
+- Server contract unchanged — endpoint still returns `wa.me` URL; only the
+  client decides how to open it.
+
 ### Order Dispatch + WhatsApp Notification (Apr 2026)
 - **Concept**: After admin approval, the salesman (or admin) clicks "Dispatch &
   notify customer". The system marks the order dispatched and opens WhatsApp

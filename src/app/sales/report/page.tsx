@@ -9,6 +9,7 @@ import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { apiFetch } from "../../../lib/clientApi";
 import { getToken } from "../../../lib/clientAuth";
+import { openWhatsApp } from "../../../lib/clientWhatsapp";
 
 type Summary = {
   totalVisits: number;
@@ -71,7 +72,7 @@ export default function MyReportPage() {
         whatsappUrl: string | null;
       }>(`/api/sales/orders/${orderId}/dispatch`, { method: "POST" });
       if (r.whatsappUrl) {
-        window.open(r.whatsappUrl, "_blank", "noopener,noreferrer");
+        openWhatsApp(r.whatsappUrl);
         setDispatchMsg("Order dispatched. WhatsApp opened — press Send to notify the customer.");
       } else {
         setDispatchMsg(
