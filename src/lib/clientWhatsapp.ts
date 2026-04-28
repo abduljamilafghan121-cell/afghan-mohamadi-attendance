@@ -1,20 +1,25 @@
 /**
  * Client-side WhatsApp opener.
  *
- * The server returns a canonical `https://wa.me/<phone>?text=...` URL,
- * but `wa.me` is unreliable inside in-app browsers / webviews (e.g. the
- * Replit mobile app, Facebook, Instagram, Telegram). Those browsers
- * block the `whatsapp://` redirect that wa.me does, and the user ends
- * up on a "Download WhatsApp" page even when WhatsApp is installed.
+ * Why this exists:
+ *   The server returns a canonical `https://wa.me/<phone>?text=...` URL.
+ *   That URL works in regular mobile browsers (Chrome on Android, Safari
+ *   on iOS) but fails in two important places:
  *
- * To work everywhere we open WhatsApp directly using the platform's
- * native launch mechanism:
- *   - Android → `intent://` URL with `scheme=whatsapp` and an HTTPS
- *     `browser_fallback_url`. The OS opens the WhatsApp app (or shows
- *     a chooser if WhatsApp + WhatsApp Business are both installed).
- *   - iOS → `whatsapp://send?phone=X&text=Y` via `window.location`.
- *   - Desktop → `https://web.whatsapp.com/send?phone=X&text=Y` opened
- *     in a new tab so WhatsApp Web pre-fills the chat.
+ *     1. Desktop browsers — `wa.me` redirects to the `whatsapp://` scheme
+ *        which the desktop browser cannot resolve (`ERR_UNKNOWN_URL_SCHEME`).
+ *     2. In-app webviews — including the Attendix Capacitor app, the
+ *        Replit app, Facebook, Instagram, Telegram. The redirect to
+ *        `whatsapp://` is blocked by the webview and the user lands on a
+ *        "Download WhatsApp" page even though WhatsApp is installed.
+ *
+ * Fix — call WhatsApp through the platform's native launch path:
+ *   - Android & iOS  → `whatsapp://send?phone=…&text=…` via
+ *     `window.location.href`. Mobile browsers and the Capacitor bridge
+ *     both delegate `whatsapp://` to the OS, which opens WhatsApp /
+ *     WhatsApp Business (Android shows a chooser the first time if both
+ *     are installed).
+ *   - Desktop        → `https://web.whatsapp.com/send?…` in a new tab.
  */
 
 function ua(): string {
@@ -55,22 +60,11 @@ export function openWhatsApp(waMeUrl: string): void {
   const { phone, text } = parseWaMe(waMeUrl);
   const textEnc = encodeURIComponent(text);
 
-  // Android: use an Intent URL so the OS launches the WhatsApp app even
-  // from inside an in-app webview. If WhatsApp is somehow not installed,
-  // the browser falls back to the wa.me URL.
-  if (isAndroid()) {
-    const fallback = encodeURIComponent(waMeUrl);
-    const intentUrl =
-      `intent://send?phone=${phone}&text=${textEnc}` +
-      `#Intent;scheme=whatsapp;action=android.intent.action.SEND;` +
-      `S.browser_fallback_url=${fallback};end`;
-    window.location.href = intentUrl;
-    return;
-  }
-
-  // iOS: open the WhatsApp custom scheme directly. iOS will route to
-  // WhatsApp / WhatsApp Business if installed.
-  if (isIOS()) {
+  // Mobile (Android / iOS — works for both mobile browsers and the
+  // Capacitor WebView). Trigger the WhatsApp custom scheme directly so
+  // the OS hands the request to the installed WhatsApp app, bypassing
+  // any wa.me redirect chain that in-app webviews block.
+  if (isAndroid() || isIOS()) {
     window.location.href = `whatsapp://send?phone=${phone}&text=${textEnc}`;
     return;
   }

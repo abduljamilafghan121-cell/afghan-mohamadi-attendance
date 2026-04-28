@@ -190,22 +190,27 @@ with a full Sales / Order / Collection module.
 ### WhatsApp Open — Cross-Platform Fix (Apr 2026)
 - **Problem**: `wa.me` is unreliable. On desktop it redirects to the
   `whatsapp://` scheme → `ERR_UNKNOWN_URL_SCHEME`. Inside in-app webviews
-  on phones (Replit mobile app, Facebook, Instagram, Telegram) the same
-  redirect is blocked and the user lands on a "Download WhatsApp" page
-  even though WhatsApp is installed.
-- **Fix**: `src/lib/clientWhatsapp.ts → openWhatsApp(waMeUrl)` detects the
-  platform and opens WhatsApp via the platform's native launch path:
-  - **Android**: `intent://send?phone=…&text=…#Intent;scheme=whatsapp;…;
-    S.browser_fallback_url=<wa.me>;end` — the OS launches WhatsApp /
-    WhatsApp Business directly even from inside an in-app webview, with
-    wa.me as a fallback if WhatsApp isn't installed.
-  - **iOS**: `whatsapp://send?phone=…&text=…` via `window.location.href`.
+  (Capacitor WebView used by the Attendix mobile app, Replit app,
+  Facebook, Instagram, Telegram) the redirect to `whatsapp://` is blocked
+  by the webview and the user lands on a "Download WhatsApp" page even
+  though WhatsApp is installed on their phone.
+- **Fix**: `src/lib/clientWhatsapp.ts → openWhatsApp(waMeUrl)` skips
+  `wa.me` entirely on mobile and triggers the WhatsApp custom scheme
+  directly:
+  - **Android & iOS** (mobile browser OR Capacitor WebView):
+    `window.location.href = "whatsapp://send?phone=…&text=…"`. Capacitor's
+    bridge and mobile browsers both delegate `whatsapp://` to the OS,
+    which opens WhatsApp / WhatsApp Business (Android shows a chooser the
+    first time if both are installed).
   - **Desktop**: `https://web.whatsapp.com/send?phone=…&text=…` opened in
     a new tab.
 - Both dispatch UIs (`/sales/report`, `/admin/sales/orders`) call this
   helper instead of `window.open(r.whatsappUrl, ...)` directly.
 - Server contract unchanged — endpoint still returns the canonical
   `wa.me` URL; only the client decides how to open it.
+- **Important**: changes here only take effect in the Capacitor mobile app
+  after rebuilding & reinstalling the app (the WebView serves the bundled
+  web build). Web users see the fix immediately after a Vercel deploy.
 
 ### Order Dispatch + WhatsApp Notification (Apr 2026)
 - **Concept**: After admin approval, the salesman (or admin) clicks "Dispatch &
