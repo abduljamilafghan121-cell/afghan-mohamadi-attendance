@@ -5,8 +5,8 @@ import { assertRole, getBearerToken, verifyAccessToken } from "../../../../lib/a
 
 const PatchSchema = z.object({
   name: z.string().min(1).optional(),
-  gpsLat: z.number().optional(),
-  gpsLng: z.number().optional(),
+  gpsLat: z.number().min(-90).max(90).optional(),
+  gpsLng: z.number().min(-180).max(180).optional(),
   gpsRadiusM: z.number().int().positive().optional(),
   timezone: z.string().min(1).optional(),
   isActive: z.boolean().optional(),

@@ -65,6 +65,8 @@ export default function AdminUsersPage() {
   const [rows, setRows] = useState<UserRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
 
   const managers = useMemo(
     () => rows.filter((r) => r.role === "manager" || r.role === "admin"),
@@ -116,14 +118,25 @@ export default function AdminUsersPage() {
     if (user && user.role !== "admin") router.push("/employee");
   }, [token, user, router]);
 
-  const load = async () => {
-    const res = await apiFetch<{ users: UserRow[] }>("/api/admin/users");
+  const load = async (search?: string, role?: string) => {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (role) params.set("role", role);
+    params.set("pageSize", "200");
+    const res = await apiFetch<{ users: UserRow[] }>(`/api/admin/users?${params.toString()}`);
     setRows(res.users);
   };
 
   useEffect(() => {
     load().catch(() => setRows([]));
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      load(searchQuery, roleFilter).catch(() => setRows([]));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, roleFilter]);
 
   const openEdit = (u: UserRow) => {
     setEditTarget(u);
@@ -193,7 +206,7 @@ export default function AdminUsersPage() {
       });
       setEditTarget(null);
       setSuccess("User updated.");
-      await load();
+      await load(searchQuery, roleFilter);
     } catch (e: any) {
       setEditError(e?.message ?? "Failed to update");
     } finally {
@@ -208,7 +221,7 @@ export default function AdminUsersPage() {
       await apiFetch(`/api/admin/users/${deleteTarget.id}`, { method: "DELETE" });
       setDeleteTarget(null);
       setSuccess("User deleted.");
-      await load();
+      await load(searchQuery, roleFilter);
     } catch (e: any) {
       setError(e?.message ?? "Failed to delete");
       setDeleteTarget(null);
@@ -245,7 +258,7 @@ export default function AdminUsersPage() {
       setCJobTitle(""); setCAddress(""); setCPhotoFile(null); setCPhotoUrl(""); setCPhotoPreview(null);
       setCreateOpen(false);
       setSuccess("User created.");
-      await load();
+      await load(searchQuery, roleFilter);
     } catch (err: any) {
       setError(err?.message ?? "Failed");
     } finally {
@@ -265,6 +278,24 @@ export default function AdminUsersPage() {
             <a className="rounded-lg px-3 py-2 hover:bg-zinc-100" href="/admin/leaves">Leaves</a>
           </div>
           <Button onClick={() => setCreateOpen(true)}>+ New User</Button>
+        </div>
+
+        <div className="mb-4 flex flex-col sm:flex-row gap-2">
+          <Input
+            placeholder="Search by name, email, or phone…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <select
+            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm bg-white"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+          >
+            <option value="">All roles</option>
+            <option value="admin">Admin</option>
+            <option value="manager">Manager</option>
+            <option value="employee">Employee</option>
+          </select>
         </div>
 
         {error && <div className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div>}

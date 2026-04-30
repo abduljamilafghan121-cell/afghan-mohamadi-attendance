@@ -2,10 +2,19 @@ import { SignJWT, jwtVerify } from "jose";
 
 export type Role = "employee" | "manager" | "admin";
 
-const JWT_SECRET = process.env.JWT_SECRET ?? "dev-secret-change-me";
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("JWT_SECRET environment variable is required in production");
+    }
+    return "dev-secret-change-me";
+  }
+  return secret;
+}
 
 function getJwtKey() {
-  return new TextEncoder().encode(JWT_SECRET);
+  return new TextEncoder().encode(getJwtSecret());
 }
 
 export type AuthUser = {

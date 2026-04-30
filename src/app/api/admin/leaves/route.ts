@@ -42,24 +42,32 @@ export async function GET(req: Request) {
   const status = parsed.data.status ?? "pending";
   const where = status === "all" ? {} : { status };
 
-  const leaves = await prisma.leaveRequest.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      startDate: true,
-      endDate: true,
-      reason: true,
-      status: true,
-      leaveType: true,
-      decidedAt: true,
-      decidedById: true,
-      createdAt: true,
-      user: { select: { id: true, name: true, email: true } },
-    },
-  });
+  const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
+  const pageSize = Math.min(Math.max(1, parseInt(url.searchParams.get("pageSize") ?? "50", 10) || 50), 200);
 
-  return NextResponse.json({ leaves });
+  const [leaves, total] = await Promise.all([
+    prisma.leaveRequest.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        startDate: true,
+        endDate: true,
+        reason: true,
+        status: true,
+        leaveType: true,
+        decidedAt: true,
+        decidedById: true,
+        createdAt: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
+    }),
+    prisma.leaveRequest.count({ where }),
+  ]);
+
+  return NextResponse.json({ leaves, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 }
 
 export async function POST(req: Request) {
