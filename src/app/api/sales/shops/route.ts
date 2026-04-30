@@ -28,8 +28,8 @@ const CreateSchema = z.object({
   name: z.string().min(1).max(200),
   address: z.string().max(500).optional().nullable(),
   phone: z.string().max(50).optional().nullable(),
-  gpsLat: z.number().optional().nullable(),
-  gpsLng: z.number().optional().nullable(),
+  gpsLat: z.number().min(-90).max(90).optional().nullable(),
+  gpsLng: z.number().min(-180).max(180).optional().nullable(),
 });
 
 export async function POST(req: Request) {

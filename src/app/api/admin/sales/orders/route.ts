@@ -8,10 +8,8 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const status = url.searchParams.get("status") ?? "pending";
-  const limit = Math.min(
-    parseInt(url.searchParams.get("limit") ?? "100", 10) || 100,
-    500,
-  );
+  const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
+  const pageSize = Math.min(Math.max(1, parseInt(url.searchParams.get("pageSize") ?? "50", 10) || 50), 200);
 
   const where: any = {};
   if (
@@ -23,18 +21,22 @@ export async function GET(req: Request) {
     where.status = status;
   }
 
-  const orders = await prisma.order.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: limit,
-    include: {
-      user: { select: { id: true, name: true, email: true } },
-      shop: { select: { id: true, name: true, phone: true } },
-      items: true,
-      reviewedBy: { select: { id: true, name: true } },
-      dispatchedBy: { select: { id: true, name: true } },
-    },
-  });
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        shop: { select: { id: true, name: true, phone: true } },
+        items: true,
+        reviewedBy: { select: { id: true, name: true } },
+        dispatchedBy: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.order.count({ where }),
+  ]);
 
-  return NextResponse.json({ orders });
+  return NextResponse.json({ orders, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 }

@@ -12,9 +12,9 @@ const BodySchema = z.object({
   officeId: z.string().min(1),
   qrPayload: z.string().min(1),
   gps: z.object({
-    lat: z.number(),
-    lng: z.number(),
-    accuracyM: z.number().optional(),
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+    accuracyM: z.number().nonnegative().optional(),
   }),
 });
 

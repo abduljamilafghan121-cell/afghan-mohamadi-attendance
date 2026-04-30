@@ -24,26 +24,35 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const statusFilter = url.searchParams.get("status") ?? "pending";
+  const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
+  const pageSize = Math.min(Math.max(1, parseInt(url.searchParams.get("pageSize") ?? "50", 10) || 50), 200);
 
-  const requests = await prisma.correctionRequest.findMany({
-    where: statusFilter === "all" ? {} : { status: statusFilter as any },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      workDate: true,
-      requestType: true,
-      intendedCheckIn: true,
-      intendedCheckOut: true,
-      reason: true,
-      status: true,
-      decidedAt: true,
-      createdAt: true,
-      user: { select: { id: true, name: true, email: true } },
-      session: { select: { id: true, checkInAt: true, checkOutAt: true, status: true } },
-    },
-  });
+  const where = statusFilter === "all" ? {} : { status: statusFilter as any };
 
-  return NextResponse.json({ requests });
+  const [requests, total] = await Promise.all([
+    prisma.correctionRequest.findMany({
+      where,
+      orderBy: { createdAt: "asc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        workDate: true,
+        requestType: true,
+        intendedCheckIn: true,
+        intendedCheckOut: true,
+        reason: true,
+        status: true,
+        decidedAt: true,
+        createdAt: true,
+        user: { select: { id: true, name: true, email: true } },
+        session: { select: { id: true, checkInAt: true, checkOutAt: true, status: true } },
+      },
+    }),
+    prisma.correctionRequest.count({ where }),
+  ]);
+
+  return NextResponse.json({ requests, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 }
 
 export async function POST(req: Request) {

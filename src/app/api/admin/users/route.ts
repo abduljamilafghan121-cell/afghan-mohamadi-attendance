@@ -31,26 +31,50 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      isActive: true,
-      managerId: true,
-      employeeId: true,
-      phone: true,
-      department: true,
-      jobTitle: true,
-      address: true,
-      photoUrl: true,
-      createdAt: true,
-    },
-  });
+  const url = new URL(req.url);
+  const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
+  const pageSize = Math.min(Math.max(1, parseInt(url.searchParams.get("pageSize") ?? "50", 10) || 50), 200);
+  const search = url.searchParams.get("search")?.trim() ?? "";
+  const roleFilter = url.searchParams.get("role") ?? "";
 
-  return NextResponse.json({ users });
+  const where: Record<string, unknown> = {};
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: "insensitive" } },
+      { email: { contains: search, mode: "insensitive" } },
+      { phone: { contains: search, mode: "insensitive" } },
+    ];
+  }
+  if (roleFilter && ["employee", "manager", "admin"].includes(roleFilter)) {
+    where.role = roleFilter;
+  }
+
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where: where as any,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        managerId: true,
+        employeeId: true,
+        phone: true,
+        department: true,
+        jobTitle: true,
+        address: true,
+        photoUrl: true,
+        createdAt: true,
+      },
+    }),
+    prisma.user.count({ where: where as any }),
+  ]);
+
+  return NextResponse.json({ users, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 }
 
 export async function POST(req: Request) {
