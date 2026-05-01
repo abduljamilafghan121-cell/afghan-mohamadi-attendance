@@ -11,12 +11,16 @@ import { downloadTextFile } from "../../../../lib/exportUtils";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
+type AbsentUser = { id: string; name: string; email: string | null; department: string | null; jobTitle: string | null; phone: string | null };
+
 type AbsentData = {
   type: "absent_today";
-  absent: { id: string; name: string; email: string | null; department: string | null; jobTitle: string | null; phone: string | null }[];
-  onLeave: { id: string; name: string; department: string | null }[];
-  present: { id: string; name: string; department: string | null }[];
+  absent: AbsentUser[];
+  onLeave: AbsentUser[];
+  onOutstation: AbsentUser[];
+  present: AbsentUser[];
   total: number;
+  holiday: { id: string; name: string } | null;
 };
 
 type SummaryRow = {
@@ -63,9 +67,13 @@ export default function HRReportsPage() {
     let csv = "";
     if (activeTab === "absent_today") {
       csv = "Name,Department,Job Title,Phone,Status\n" +
-        (data.absent ?? []).map((u: any) => `"${u.name}","${u.department ?? ""}","${u.jobTitle ?? ""}","${u.phone ?? ""}","Absent"`).join("\n") +
+        (data.present ?? []).map((u: any) => `"${u.name}","${u.department ?? ""}","${u.jobTitle ?? ""}","${u.phone ?? ""}","Present"`).join("\n") +
         "\n" +
-        (data.onLeave ?? []).map((u: any) => `"${u.name}","${u.department ?? ""}","","","On Leave"`).join("\n");
+        (data.onLeave ?? []).map((u: any) => `"${u.name}","${u.department ?? ""}","${u.jobTitle ?? ""}","${u.phone ?? ""}","On Leave"`).join("\n") +
+        "\n" +
+        (data.onOutstation ?? []).map((u: any) => `"${u.name}","${u.department ?? ""}","${u.jobTitle ?? ""}","${u.phone ?? ""}","On Outstation"`).join("\n") +
+        "\n" +
+        (data.absent ?? []).map((u: any) => `"${u.name}","${u.department ?? ""}","${u.jobTitle ?? ""}","${u.phone ?? ""}","Absent"`).join("\n");
     } else if (activeTab === "monthly_summary") {
       csv = "Employee,Department,Present,Late,Early Dep,Overtime,Leave Days,Total Hours\n" +
         (data.summaries ?? []).map((r: SummaryRow) =>
@@ -131,11 +139,24 @@ export default function HRReportsPage() {
         {/* ABSENT TODAY */}
         {!loading && activeTab === "absent_today" && data && (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
+            {/* Holiday banner */}
+            {data.holiday && (
+              <div className="flex items-center gap-2 rounded-xl bg-indigo-50 border border-indigo-200 px-4 py-3">
+                <span className="text-xl">🏖️</span>
+                <div>
+                  <div className="font-semibold text-indigo-800 text-sm">Office Holiday — {data.holiday.name}</div>
+                  <div className="text-xs text-indigo-600">Today is a declared holiday. Attendance figures below reflect actual check-ins only.</div>
+                </div>
+              </div>
+            )}
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: "Present", value: data.present?.length ?? 0, color: "bg-emerald-50 text-emerald-700" },
-                { label: "Absent", value: data.absent?.length ?? 0, color: "bg-red-50 text-red-700" },
-                { label: "On Leave", value: data.onLeave?.length ?? 0, color: "bg-amber-50 text-amber-700" },
+                { label: "Present",       value: data.present?.length ?? 0,      color: "bg-emerald-50 text-emerald-700 border-emerald-100" },
+                { label: "On Leave",      value: data.onLeave?.length ?? 0,       color: "bg-amber-50 text-amber-700 border-amber-100" },
+                { label: "On Outstation", value: data.onOutstation?.length ?? 0,  color: "bg-blue-50 text-blue-700 border-blue-100" },
+                { label: "Absent",        value: data.absent?.length ?? 0,        color: "bg-red-50 text-red-700 border-red-100" },
               ].map((c) => (
                 <div key={c.label} className={`rounded-2xl border p-4 ${c.color}`}>
                   <div className="text-2xl font-bold">{c.value}</div>
@@ -147,7 +168,7 @@ export default function HRReportsPage() {
             {data.absent?.length > 0 && (
               <Card title="Absent Employees">
                 <div className="divide-y divide-zinc-100">
-                  {data.absent.map((u: any) => (
+                  {data.absent.map((u: AbsentUser) => (
                     <div key={u.id} className="flex items-center justify-between py-3">
                       <div>
                         <div className="font-medium text-zinc-900">{u.name}</div>
@@ -160,13 +181,32 @@ export default function HRReportsPage() {
               </Card>
             )}
 
+            {data.onOutstation?.length > 0 && (
+              <Card title="On Outstation Today">
+                <div className="divide-y divide-zinc-100">
+                  {data.onOutstation.map((u: AbsentUser) => (
+                    <div key={u.id} className="flex items-center justify-between py-3">
+                      <div>
+                        <div className="font-medium text-zinc-900">{u.name}</div>
+                        <div className="text-xs text-zinc-400">{u.department ?? ""}{u.jobTitle ? ` · ${u.jobTitle}` : ""}</div>
+                      </div>
+                      {u.phone && <div className="text-xs text-blue-500">{u.phone}</div>}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
             {data.onLeave?.length > 0 && (
               <Card title="On Leave Today">
                 <div className="divide-y divide-zinc-100">
-                  {data.onLeave.map((u: any) => (
+                  {data.onLeave.map((u: AbsentUser) => (
                     <div key={u.id} className="flex items-center justify-between py-3">
-                      <div className="font-medium text-zinc-900">{u.name}</div>
-                      <div className="text-xs text-zinc-400">{u.department ?? ""}</div>
+                      <div>
+                        <div className="font-medium text-zinc-900">{u.name}</div>
+                        <div className="text-xs text-zinc-400">{u.department ?? ""}{u.jobTitle ? ` · ${u.jobTitle}` : ""}</div>
+                      </div>
+                      {u.phone && <div className="text-xs text-zinc-500">{u.phone}</div>}
                     </div>
                   ))}
                 </div>

@@ -42,7 +42,7 @@ export async function GET(req: Request) {
     const tomorrow = new Date(today);
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
-    const [allActive, todaySessions, approvedLeaves] = await Promise.all([
+    const [allActive, todaySessions, approvedLeaves, outstationToday, holidayToday] = await Promise.all([
       prisma.user.findMany({
         where: { isActive: true, role: { in: ["employee", "manager"] } },
         select: { id: true, name: true, email: true, department: true, jobTitle: true, phone: true },
@@ -55,15 +55,31 @@ export async function GET(req: Request) {
         where: { status: "approved", startDate: { lte: today }, endDate: { gte: today } },
         select: { userId: true },
       }),
+      prisma.outstationDay.findMany({
+        where: { startDate: { lte: today }, endDate: { gte: today } },
+        select: { userId: true },
+      }),
+      prisma.holiday.findFirst({
+        where: { date: { gte: today, lt: tomorrow } },
+        select: { id: true, name: true },
+      }),
     ]);
 
-    const presentIds = new Set(todaySessions.map((s) => s.userId));
-    const onLeaveIds = new Set(approvedLeaves.map((l) => l.userId));
-    const absent = allActive.filter((u) => !presentIds.has(u.id) && !onLeaveIds.has(u.id));
-    const onLeave = allActive.filter((u) => onLeaveIds.has(u.id));
-    const present = allActive.filter((u) => presentIds.has(u.id));
+    const presentIds    = new Set(todaySessions.map((s) => s.userId));
+    const onLeaveIds    = new Set(approvedLeaves.map((l) => l.userId));
+    const outstationIds = new Set(outstationToday.map((o) => o.userId));
 
-    return NextResponse.json({ type, absent, onLeave, present, total: allActive.length });
+    // Absent = not present, not on approved leave, not on outstation
+    const absent      = allActive.filter((u) => !presentIds.has(u.id) && !onLeaveIds.has(u.id) && !outstationIds.has(u.id));
+    const onLeave     = allActive.filter((u) => onLeaveIds.has(u.id));
+    const onOutstation = allActive.filter((u) => outstationIds.has(u.id) && !onLeaveIds.has(u.id));
+    const present     = allActive.filter((u) => presentIds.has(u.id));
+
+    return NextResponse.json({
+      type, absent, onLeave, onOutstation, present,
+      total: allActive.length,
+      holiday: holidayToday ?? null,
+    });
   }
 
   if (type === "monthly_summary") {
