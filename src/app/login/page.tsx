@@ -214,6 +214,11 @@ export default function LoginPage() {
               >
                 {loading ? "Signing in…" : "Sign in"}
               </Button>
+
+              <p className="text-center text-xs text-zinc-400">
+                Forgot your password?{" "}
+                <span className="text-zinc-500">Contact your admin — they can generate a secure reset link for you.</span>
+              </p>
             </div>
           </div>
         </Card>

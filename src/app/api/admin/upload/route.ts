@@ -7,6 +7,14 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
+const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+function sanitizeFolder(raw: string): string {
+  // Strip any path separators and non-alphanumeric chars; default to "uploads"
+  const cleaned = raw.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
+  return cleaned || "uploads";
+}
+
 export async function POST(req: Request) {
   const token = getBearerToken(req.headers.get("authorization"));
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -23,6 +31,10 @@ export async function POST(req: Request) {
 
   const file = form.get("file");
   if (!(file instanceof File)) return NextResponse.json({ error: "Missing file" }, { status: 400 });
+
+  if (file.size > MAX_SIZE_BYTES) {
+    return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 413 });
+  }
 
   const mime = file.type || "";
   if (!mime.startsWith("image/")) return NextResponse.json({ error: "Only image files allowed" }, { status: 400 });
@@ -46,7 +58,9 @@ export async function POST(req: Request) {
   const bytes = await file.arrayBuffer();
   const buf = Buffer.from(bytes);
 
-  const folder = form.get("folder")?.toString() || "uploads";
+  // Sanitize the folder to prevent path traversal
+  const rawFolder = form.get("folder")?.toString() ?? "";
+  const folder = sanitizeFolder(rawFolder);
 
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

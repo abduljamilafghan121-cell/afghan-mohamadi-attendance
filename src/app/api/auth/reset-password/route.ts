@@ -3,6 +3,8 @@ import { z } from "zod";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "../../../../lib/prisma";
+import { checkRateLimit } from "../../../../lib/rateLimit";
+import { logActivity } from "../../../../lib/activityLog";
 
 const ValidateSchema = z.object({
   token: z.string().min(1),
@@ -42,6 +44,16 @@ export async function GET(req: Request) {
 
 // POST /api/auth/reset-password — consume token and set new password
 export async function POST(req: Request) {
+  // Rate limit: 5 attempts per IP per 15 minutes to prevent brute-force
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rl = checkRateLimit(`reset-password:${ip}`, 5, 15 * 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many attempts. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
   const body = ResetSchema.safeParse(await req.json().catch(() => null));
   if (!body.success) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
@@ -51,7 +63,7 @@ export async function POST(req: Request) {
 
   const record = await prisma.passwordResetToken.findUnique({
     where: { tokenHash },
-    include: { user: { select: { id: true, isActive: true } } },
+    include: { user: { select: { id: true, name: true, isActive: true } } },
   });
 
   if (!record || record.usedAt || record.expiresAt < new Date()) {
@@ -73,6 +85,14 @@ export async function POST(req: Request) {
       data: { usedAt: new Date() },
     }),
   ]);
+
+  // Audit log: record that the reset link was successfully used
+  logActivity(
+    record.userId,
+    "password_reset",
+    "auth",
+    `Password was reset via a reset link for ${record.user.name}`,
+  ).catch(() => null);
 
   return NextResponse.json({ success: true });
 }

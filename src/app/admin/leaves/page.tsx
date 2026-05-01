@@ -7,6 +7,7 @@ import { Card } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
 import { apiFetch } from "../../../lib/clientApi";
 import { getToken, parseJwt } from "../../../lib/clientAuth";
+import { Input } from "../../../components/ui/Input";
 
 type LeaveRow = {
   id: string;
@@ -49,8 +50,21 @@ export default function AdminLeavesPage() {
 
   const [status, setStatus] = useState<"pending" | "approved" | "rejected" | "all">("pending");
   const [rows, setRows] = useState<LeaveRow[]>([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (r) =>
+        r.user.name.toLowerCase().includes(q) ||
+        (r.user.email ?? "").toLowerCase().includes(q) ||
+        r.leaveType.toLowerCase().includes(q) ||
+        (r.reason ?? "").toLowerCase().includes(q),
+    );
+  }, [rows, search]);
 
   useEffect(() => {
     if (!token) router.push("/login");
@@ -131,6 +145,14 @@ export default function AdminLeavesPage() {
 
         {error ? <div className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
 
+        <div className="mb-3">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by employee, type, or reason…"
+          />
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -144,7 +166,7 @@ export default function AdminLeavesPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {filteredRows.map((r) => (
                 <tr key={r.id} className="border-t border-zinc-100">
                   <td className="py-3">
                     <div className="font-medium text-zinc-900">{r.user.name}</div>
@@ -176,10 +198,10 @@ export default function AdminLeavesPage() {
                   </td>
                 </tr>
               ))}
-              {!loading && rows.length === 0 ? (
+              {!loading && filteredRows.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-center text-sm text-zinc-500" colSpan={5}>
-                    No leave requests.
+                  <td className="py-6 text-center text-sm text-zinc-500" colSpan={6}>
+                    {search ? "No leave requests match your search." : "No leave requests."}
                   </td>
                 </tr>
               ) : null}

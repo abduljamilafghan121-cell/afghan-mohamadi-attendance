@@ -4,12 +4,23 @@ import crypto from "crypto";
 import { prisma } from "../../../../lib/prisma";
 import { requireUser } from "../../../../lib/apiAuth";
 import { logActivity } from "../../../../lib/activityLog";
+import { checkRateLimit } from "../../../../lib/rateLimit";
 
 const BodySchema = z.object({
   userId: z.string().min(1),
 });
 
 export async function POST(req: Request) {
+  // Rate limit: 10 reset-link generations per admin per minute
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rl = checkRateLimit(`reset-request:${ip}`, 10, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before generating another link." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
   const auth = await requireUser(req, ["admin"]);
   if (!auth.ok) return auth.response;
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getBearerToken, verifyAccessToken, AuthUser, Role } from "./auth";
+import { prisma } from "./prisma";
 
 export type AuthResult =
   | { ok: true; user: AuthUser }
@@ -16,6 +17,17 @@ export async function requireUser(req: Request, allowed?: Role[]): Promise<AuthR
   } catch {
     return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
+
+  // Verify the user still exists and is active on every request.
+  // This ensures deactivated users cannot continue using old tokens.
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { isActive: true },
+  });
+  if (!dbUser || !dbUser.isActive) {
+    return { ok: false, response: NextResponse.json({ error: "Account disabled" }, { status: 403 }) };
+  }
+
   if (allowed && !allowed.includes(user.role)) {
     return { ok: false, response: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
   }
