@@ -104,7 +104,7 @@ export default function DisciplinaryPage() {
 
   const openCreate = () => {
     setEditTarget(null);
-    setForm({ ...emptyForm, date: new Date().toISOString().slice(0, 10), issuedById: jwtUser?.id ?? "" });
+    setForm({ ...emptyForm, date: new Date().toISOString().slice(0, 10), issuedById: jwtUser?.sub ?? "" });
     setModalOpen(true); setError(null);
   };
 

@@ -6,7 +6,8 @@ export type ActivityModule =
   | "leave"
   | "correction"
   | "sales"
-  | "admin";
+  | "admin"
+  | "hr";
 
 export async function logActivity(
   userId: string,
