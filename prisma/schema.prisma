@@ -134,6 +134,16 @@ model User {
   notifications        Notification[]
   activityLogs         ActivityLog[]
   passwordResetTokens  PasswordResetToken[]
+
+  // HR extension relations
+  contracts            EmployeeContract[]       @relation("UserContracts")
+  emergencyContacts    EmergencyContact[]       @relation("UserEmergencyContacts")
+  salaryRecords        SalaryRecord[]           @relation("UserSalaryRecords")
+  performanceReviews   PerformanceReview[]      @relation("UserPerformanceReviews")
+  reviewsConducted     PerformanceReview[]      @relation("ReviewerReviews")
+  trainingRecords      TrainingRecord[]         @relation("UserTrainingRecords")
+  disciplinaryRecords  DisciplinaryRecord[]     @relation("UserDisciplinaryRecords")
+  disciplinaryIssued   DisciplinaryRecord[]     @relation("IssuedByDisciplinary")
 }
 
 
@@ -698,5 +708,159 @@ model PasswordResetToken {
   createdAt DateTime  @default(now())
 
   @@index([tokenHash])
+  @@index([userId])
+}
+
+// ─── HR Extension Models ───────────────────────────────────────────
+
+enum ContractType {
+  full_time
+  part_time
+  contract
+  intern
+}
+
+enum PayFrequency {
+  monthly
+  biweekly
+  weekly
+}
+
+enum PerformanceRating {
+  outstanding
+  exceeds_expectations
+  meets_expectations
+  needs_improvement
+  unsatisfactory
+}
+
+enum DisciplinaryType {
+  verbal_warning
+  written_warning
+  final_warning
+  suspension
+  termination
+}
+
+enum TrainingStatus {
+  planned
+  in_progress
+  completed
+  cancelled
+}
+
+model EmployeeContract {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation("UserContracts", fields: [userId], references: [id], onDelete: Cascade)
+  contractType   ContractType @default(full_time)
+  startDate      DateTime
+  endDate        DateTime?
+  probationEndDate DateTime?
+  jobTitle       String?
+  department     String?
+  salary         Float?
+  currency       String       @default("AFN")
+  payFrequency   PayFrequency @default(monthly)
+  notes          String?
+  isActive       Boolean      @default(true)
+  createdById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model EmergencyContact {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation("UserEmergencyContacts", fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  relationship String
+  phone        String
+  phone2       String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model SalaryRecord {
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation("UserSalaryRecords", fields: [userId], references: [id], onDelete: Cascade)
+  month        Int
+  year         Int
+  baseSalary   Float
+  allowances   Float        @default(0)
+  deductions   Float        @default(0)
+  netSalary    Float
+  currency     String       @default("AFN")
+  payFrequency PayFrequency @default(monthly)
+  notes        String?
+  paidAt       DateTime?
+  createdById  String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([userId, month, year])
+  @@index([userId])
+  @@index([year, month])
+}
+
+model PerformanceReview {
+  id           String            @id @default(cuid())
+  userId       String
+  user         User              @relation("UserPerformanceReviews", fields: [userId], references: [id], onDelete: Cascade)
+  reviewerId   String
+  reviewer     User              @relation("ReviewerReviews", fields: [reviewerId], references: [id])
+  reviewPeriod String
+  rating       PerformanceRating
+  goals        String?
+  achievements String?
+  improvements String?
+  comments     String?
+  reviewDate   DateTime
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([reviewerId])
+}
+
+model TrainingRecord {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation("UserTrainingRecords", fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  provider     String?
+  startDate    DateTime
+  endDate      DateTime?
+  status       TrainingStatus @default(planned)
+  certificate  String?
+  notes        String?
+  createdById  String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([userId])
+}
+
+model DisciplinaryRecord {
+  id           String           @id @default(cuid())
+  userId       String
+  user         User             @relation("UserDisciplinaryRecords", fields: [userId], references: [id], onDelete: Cascade)
+  type         DisciplinaryType
+  date         DateTime
+  reason       String
+  description  String?
+  actionTaken  String?
+  issuedById   String?
+  issuedBy     User?            @relation("IssuedByDisciplinary", fields: [issuedById], references: [id])
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
   @@index([userId])
 }

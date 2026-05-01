@@ -48,7 +48,7 @@ export default function LoginPage() {
       try {
         await apiFetch("/api/me");
         if (jwt.role === "admin" || jwt.role === "manager") {
-          window.location.href = "/admin/attendance";
+          window.location.href = "/admin/dashboard";
         } else {
           window.location.href = "/employee";
         }
@@ -73,7 +73,7 @@ export default function LoginPage() {
       });
       setToken(res.token, rememberMe);
       if (res.user.role === "admin" || res.user.role === "manager") {
-        window.location.href = "/admin/attendance";
+        window.location.href = "/admin/dashboard";
       } else {
         window.location.href = "/employee";
       }
