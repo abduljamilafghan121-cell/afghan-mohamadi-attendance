@@ -31,26 +31,48 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      isActive: true,
-      managerId: true,
-      employeeId: true,
-      phone: true,
-      department: true,
-      jobTitle: true,
-      address: true,
-      photoUrl: true,
-      createdAt: true,
-    },
-  });
+  const url = new URL(req.url);
+  const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
+  const pageSize = Math.min(500, Math.max(1, parseInt(url.searchParams.get("pageSize") ?? "500", 10) || 500));
+  const search = url.searchParams.get("search")?.trim() ?? "";
 
-  return NextResponse.json({ users });
+  const where = search
+    ? {
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { email: { contains: search, mode: "insensitive" as const } },
+          { employeeId: { contains: search, mode: "insensitive" as const } },
+          { department: { contains: search, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        managerId: true,
+        employeeId: true,
+        phone: true,
+        department: true,
+        jobTitle: true,
+        address: true,
+        photoUrl: true,
+        createdAt: true,
+      },
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return NextResponse.json({ users, total, page, pageSize });
 }
 
 export async function POST(req: Request) {

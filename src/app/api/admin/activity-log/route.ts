@@ -11,7 +11,8 @@ export async function GET(req: Request) {
   const module = url.searchParams.get("module") || undefined;
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
-  const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "200", 10) || 200, 500);
+  const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "100", 10) || 100, 200);
+  const cursor = url.searchParams.get("cursor") || undefined;
 
   const where: any = {};
   if (userId) where.userId = userId;
@@ -25,11 +26,16 @@ export async function GET(req: Request) {
   const logs = await prisma.activityLog.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    take: limit,
+    take: limit + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     include: {
       user: { select: { id: true, name: true, role: true, employeeId: true } },
     },
   });
 
-  return NextResponse.json({ logs });
+  const hasMore = logs.length > limit;
+  const items = hasMore ? logs.slice(0, limit) : logs;
+  const nextCursor = hasMore ? items[items.length - 1]?.id : null;
+
+  return NextResponse.json({ logs: items, nextCursor, hasMore });
 }

@@ -120,47 +120,25 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
   }
 
   if (params.id === authUser.id) {
-    return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
+    return NextResponse.json({ error: "Cannot deactivate your own account" }, { status: 400 });
   }
 
   const target = await prisma.user.findUnique({ where: { id: params.id } });
   if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   if (target.role === "admin") {
-    return NextResponse.json({ error: "Cannot delete admin accounts" }, { status: 403 });
+    return NextResponse.json({ error: "Cannot deactivate admin accounts" }, { status: 403 });
   }
 
   try {
-    await prisma.$transaction(async (tx) => {
-      const sessions = await tx.attendanceSession.findMany({
-        where: { userId: params.id },
-        select: { id: true },
-      });
-      const sessionIds = sessions.map((s) => s.id);
-
-      if (sessionIds.length > 0) {
-        await tx.attendanceEvent.deleteMany({ where: { sessionId: { in: sessionIds } } });
-        await tx.attendanceSession.deleteMany({ where: { id: { in: sessionIds } } });
-      }
-
-      await tx.leaveRequest.deleteMany({ where: { userId: params.id } });
-
-      await tx.dailyQrToken.updateMany({
-        where: { createdByAdminId: params.id },
-        data: { createdByAdminId: null },
-      });
-
-      await tx.user.updateMany({
-        where: { managerId: params.id },
-        data: { managerId: null },
-      });
-
-      await tx.user.delete({ where: { id: params.id } });
+    await prisma.user.update({
+      where: { id: params.id },
+      data: { isActive: false },
     });
 
     return NextResponse.json({ deleted: true });
   } catch (e: any) {
-    console.error("Delete user error:", e);
-    return NextResponse.json({ error: "Failed to delete user" }, { status: 500 });
+    console.error("Deactivate user error:", e);
+    return NextResponse.json({ error: "Failed to deactivate user" }, { status: 500 });
   }
 }

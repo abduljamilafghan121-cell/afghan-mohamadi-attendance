@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { signAccessToken } from "../../../../lib/auth";
 import { logActivity } from "../../../../lib/activityLog";
+import { checkRateLimit } from "../../../../lib/rateLimit";
 
 const BodySchema = z.object({
   email: z.string().min(1),
@@ -12,6 +13,23 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+
+  const { allowed, retryAfterMs } = checkRateLimit(`login:${ip}`, 5, 60_000);
+  if (!allowed) {
+    const retryAfterSec = Math.ceil(retryAfterMs / 1000);
+    return NextResponse.json(
+      { error: "Too many login attempts. Please wait before trying again." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfterSec) },
+      },
+    );
+  }
+
   const body = BodySchema.safeParse(await req.json().catch(() => null));
   if (!body.success) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });

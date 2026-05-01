@@ -30,8 +30,8 @@ const CreateSchema = z.object({
   shopId: z.string().min(1),
   customerType: z.enum(["new_customer", "existing"]).default("existing"),
   notes: z.string().max(2000).optional().nullable(),
-  gpsLat: z.number().optional().nullable(),
-  gpsLng: z.number().optional().nullable(),
+  gpsLat: z.number().min(-90).max(90).optional().nullable(),
+  gpsLng: z.number().min(-180).max(180).optional().nullable(),
   products: z
     .array(
       z.object({
