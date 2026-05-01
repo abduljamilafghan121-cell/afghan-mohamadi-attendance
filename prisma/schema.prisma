@@ -131,9 +131,11 @@ model User {
   visitPlans                 VisitPlan[]          @relation("VisitPlanUser")
   visitPlansCreated          VisitPlan[]          @relation("VisitPlanCreatedBy")
 
-  notifications  Notification[]
-  activityLogs   ActivityLog[]
+  notifications        Notification[]
+  activityLogs         ActivityLog[]
+  passwordResetTokens  PasswordResetToken[]
 }
+
 
 enum NotificationType {
   leave_submitted
@@ -684,4 +686,17 @@ model ActivityLog {
   @@index([userId, createdAt(sort: Desc)])
   @@index([module, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([tokenHash])
+  @@index([userId])
 }

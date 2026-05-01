@@ -66,6 +66,21 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // ── Search ────────────────────────────────────────────────────
+  const [search, setSearch] = useState("");
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        (r.email ?? "").toLowerCase().includes(q) ||
+        (r.employeeId ?? "").toLowerCase().includes(q) ||
+        (r.department ?? "").toLowerCase().includes(q) ||
+        r.role.toLowerCase().includes(q),
+    );
+  }, [rows, search]);
+
   const managers = useMemo(
     () => rows.filter((r) => r.role === "manager" || r.role === "admin"),
     [rows]
@@ -107,9 +122,15 @@ export default function AdminUsersPage() {
   const [editError, setEditError] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
 
-  // ── Delete ────────────────────────────────────────────────────
+  // ── Deactivate ────────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // ── Reset password link ───────────────────────────────────────
+  const [resetTarget, setResetTarget] = useState<UserRow | null>(null);
+  const [resetLink, setResetLink] = useState<string | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetCopied, setResetCopied] = useState(false);
 
   useEffect(() => {
     if (!token) router.push("/login");
@@ -207,10 +228,10 @@ export default function AdminUsersPage() {
     try {
       await apiFetch(`/api/admin/users/${deleteTarget.id}`, { method: "DELETE" });
       setDeleteTarget(null);
-      setSuccess("User deleted.");
+      setSuccess("User deactivated.");
       await load();
     } catch (e: any) {
-      setError(e?.message ?? "Failed to delete");
+      setError(e?.message ?? "Failed to deactivate");
       setDeleteTarget(null);
     } finally {
       setDeleteLoading(false);
@@ -253,6 +274,34 @@ export default function AdminUsersPage() {
     }
   };
 
+  const generateResetLink = async (u: UserRow) => {
+    setResetTarget(u);
+    setResetLink(null);
+    setResetCopied(false);
+    setResetLoading(true);
+    try {
+      const res = await apiFetch<{ resetPath: string }>("/api/auth/reset-request", {
+        method: "POST",
+        body: JSON.stringify({ userId: u.id }),
+      });
+      const full = `${window.location.origin}${res.resetPath}`;
+      setResetLink(full);
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to generate reset link");
+      setResetTarget(null);
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const copyResetLink = () => {
+    if (!resetLink) return;
+    navigator.clipboard.writeText(resetLink).then(() => {
+      setResetCopied(true);
+      setTimeout(() => setResetCopied(false), 2500);
+    });
+  };
+
   return (
     <AppShell>
       <Card title="Users">
@@ -270,6 +319,15 @@ export default function AdminUsersPage() {
         {error && <div className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div>}
         {success && <div className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{success}</div>}
 
+        {/* Search */}
+        <div className="mb-3">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, email, employee ID, department, or role…"
+          />
+        </div>
+
         <div className="overflow-x-auto rounded-xl border border-zinc-200">
           <table className="min-w-full text-left text-sm">
             <thead className="bg-zinc-50 text-xs font-medium uppercase tracking-wide text-zinc-600">
@@ -282,7 +340,7 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {filteredRows.map((r) => (
                 <tr key={r.id} className="border-t border-zinc-100 hover:bg-zinc-50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -320,33 +378,47 @@ export default function AdminUsersPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-2 flex-wrap">
                       <button
                         onClick={() => openEdit(r)}
                         className="rounded-lg px-3 py-1.5 text-xs border border-zinc-200 hover:bg-zinc-100"
                       >
                         Edit
                       </button>
+                      <button
+                        onClick={() => generateResetLink(r)}
+                        className="rounded-lg px-3 py-1.5 text-xs border border-blue-200 text-blue-600 hover:bg-blue-50"
+                      >
+                        Reset Link
+                      </button>
                       {r.role !== "admin" && (
                         <button
                           onClick={() => setDeleteTarget(r)}
                           className="rounded-lg px-3 py-1.5 text-xs border border-red-200 text-red-600 hover:bg-red-50"
                         >
-                          Delete
+                          Deactivate
                         </button>
                       )}
                     </div>
                   </td>
                 </tr>
               ))}
-              {rows.length === 0 && (
+              {filteredRows.length === 0 && (
                 <tr>
-                  <td className="px-4 py-8 text-center text-zinc-400" colSpan={5}>No users.</td>
+                  <td className="px-4 py-8 text-center text-zinc-400" colSpan={5}>
+                    {search ? "No users match your search." : "No users."}
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {rows.length > 0 && (
+          <p className="mt-2 text-xs text-zinc-400">
+            {search ? `${filteredRows.length} of ${rows.length}` : rows.length} user{rows.length !== 1 ? "s" : ""}
+          </p>
+        )}
       </Card>
 
       {/* ── Create Modal ── */}
@@ -512,18 +584,48 @@ export default function AdminUsersPage() {
         </Modal>
       )}
 
-      {/* ── Delete Confirm Modal ── */}
+      {/* ── Deactivate Confirm Modal ── */}
       {deleteTarget && (
-        <Modal title="Delete User" onClose={() => setDeleteTarget(null)}>
+        <Modal title="Deactivate User" onClose={() => setDeleteTarget(null)}>
           <p className="mb-4 text-sm text-zinc-700">
-            Are you sure you want to delete <span className="font-semibold">{deleteTarget.name}</span>? This will also remove all their attendance records and leave requests. This cannot be undone.
+            Are you sure you want to deactivate <span className="font-semibold">{deleteTarget.name}</span>?
+            Their account will be disabled and they will not be able to log in. All historical data (attendance,
+            sales, leave records) will be preserved. You can re-activate them at any time via Edit.
           </p>
           <div className="flex gap-2">
             <Button variant="danger" disabled={deleteLoading} onClick={confirmDelete} className="flex-1">
-              {deleteLoading ? "Deleting..." : "Yes, Delete"}
+              {deleteLoading ? "Deactivating..." : "Yes, Deactivate"}
             </Button>
             <Button variant="secondary" onClick={() => setDeleteTarget(null)} className="flex-1">Cancel</Button>
           </div>
+        </Modal>
+      )}
+
+      {/* ── Reset Password Link Modal ── */}
+      {resetTarget && (
+        <Modal title={`Reset Link — ${resetTarget.name}`} onClose={() => { setResetTarget(null); setResetLink(null); }}>
+          {resetLoading && (
+            <div className="flex items-center justify-center py-8">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-700" />
+            </div>
+          )}
+          {!resetLoading && resetLink && (
+            <div className="space-y-4">
+              <p className="text-sm text-zinc-600">
+                Share this link with <span className="font-semibold">{resetTarget.name}</span>. It expires in
+                1 hour and can only be used once.
+              </p>
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                <p className="break-all text-xs text-zinc-700 font-mono">{resetLink}</p>
+              </div>
+              <Button onClick={copyResetLink} className="w-full">
+                {resetCopied ? "Copied!" : "Copy Link"}
+              </Button>
+              <p className="text-xs text-zinc-400 text-center">
+                Generating a new link will invalidate any previous unused links for this user.
+              </p>
+            </div>
+          )}
         </Modal>
       )}
     </AppShell>
