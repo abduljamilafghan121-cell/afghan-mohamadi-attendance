@@ -108,7 +108,7 @@ export default function DirectoryPage() {
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">{dept} ({emps.length})</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {emps.map((e) => (
-                <div key={e.id} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div key={e.id} onClick={() => router.push(`/admin/hr/employees/${e.id}`)} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
                   <div className="flex items-start gap-3">
                     {e.photoUrl ? (
                       <img src={e.photoUrl} alt={e.name} className="h-12 w-12 rounded-full object-cover flex-shrink-0" />
