@@ -380,6 +380,12 @@ export default function AdminUsersPage() {
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-2 flex-wrap">
                       <button
+                        onClick={() => router.push(`/admin/hr/employees/${r.id}`)}
+                        className="rounded-lg px-3 py-1.5 text-xs border border-violet-200 text-violet-700 hover:bg-violet-50"
+                      >
+                        HR Profile
+                      </button>
+                      <button
                         onClick={() => openEdit(r)}
                         className="rounded-lg px-3 py-1.5 text-xs border border-zinc-200 hover:bg-zinc-100"
                       >
