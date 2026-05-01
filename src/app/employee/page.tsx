@@ -435,417 +435,537 @@ export default function EmployeePage() {
     }
   };
 
+  const hourNow = new Date().getHours();
+  const greeting = hourNow < 12 ? "Good morning" : hourNow < 17 ? "Good afternoon" : "Good evening";
+  const todayLabel = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  const checkedIn = !!today?.session?.checkInAt;
+  const checkedOut = !!today?.session?.checkOutAt;
+
+  const qrDecoded = (() => {
+    if (!qrPayload) return null;
+    try {
+      const p = JSON.parse(qrPayload);
+      const office = offices.find((o) => o.id === p.officeId);
+      return { ok: true, officeName: office?.name ?? null, purpose: p.purpose ?? null };
+    } catch {
+      return { ok: false };
+    }
+  })();
+
   return (
     <AppShell>
-      <div className="mb-4 grid gap-3 sm:grid-cols-2">
-        <a
-          href="/employee"
-          className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm hover:bg-zinc-50"
-        >
-          <div className="text-base font-semibold text-zinc-900">Attendance</div>
-          <div className="mt-1 text-sm text-zinc-600">Check in/out and view your day.</div>
-        </a>
-        <a
-          href="/sales"
-          className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm hover:bg-emerald-100"
-        >
-          <div className="text-base font-semibold text-emerald-900">Sales</div>
-          <div className="mt-1 text-sm text-emerald-800">Visits, orders, and collections.</div>
-        </a>
-      </div>
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <Card title="Check In / Check Out">
-            <div className="grid gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-800">Office</label>
-                <select
-                  value={officeId}
-                  onChange={(e) => setOfficeId(e.target.value)}
-                  className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm focus:ring-4 focus:ring-zinc-100"
-                >
-                  {offices.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+      <div className="space-y-6">
 
-              <div className="grid gap-2">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium text-zinc-800">GPS</div>
-                  <Button variant="secondary" type="button" onClick={getLocation}>
-                    Get GPS
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input value={gps?.lat ?? ""} readOnly placeholder="Latitude" />
-                  <Input value={gps?.lng ?? ""} readOnly placeholder="Longitude" />
-                </div>
-                <div className="text-xs text-zinc-500">You must be inside the office radius.</div>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-800">QR Payload</label>
-                <div className="mb-2 flex flex-wrap gap-2">
-                  {!scannerOpen ? (
-                    <Button variant="secondary" type="button" onClick={startScanner}>
-                      Scan with camera
-                    </Button>
-                  ) : (
-                    <Button variant="secondary" type="button" onClick={stopScanner}>
-                      Stop camera
-                    </Button>
-                  )}
-                </div>
-
-                {scannerError ? (
-                  <div className="mb-2 rounded-xl bg-red-50 p-3 text-sm text-red-700">{scannerError}</div>
-                ) : null}
-
-                {scannerOpen ? (
-                  <div className="mb-2 overflow-hidden rounded-xl border border-zinc-200 bg-black">
-                    <video ref={videoRef} className="aspect-video w-full" playsInline muted />
-                    <canvas ref={canvasRef} className="hidden" />
-                  </div>
-                ) : null}
-
-                <Textarea
-                  value={qrPayload}
-                  onChange={(e) => setQrPayload(e.target.value)}
-                  rows={3}
-                  placeholder="QR payload will appear here after scanning, or paste it manually."
-                />
-                {qrPayload ? (
-                  <div className="mt-2 space-y-1">
-                    {(() => {
-                      try {
-                        const p = JSON.parse(qrPayload);
-                        const office = offices.find((o) => o.id === p.officeId);
-                        return (
-                          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                            <div className="font-medium mb-0.5">✓ QR decoded</div>
-                            {office && <div>Office: <strong>{office.name}</strong></div>}
-                            {p.purpose && <div>Purpose: <strong>{p.purpose.replace("_", "-")}</strong></div>}
-                          </div>
-                        );
-                      } catch {
-                        return (
-                          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                            ⚠ Could not decode QR — make sure it was generated by this system.
-                          </div>
-                        );
-                      }
-                    })()}
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-zinc-400">QR payload loaded</span>
-                      <button
-                        type="button"
-                        onClick={() => setQrPayload("")}
-                        className="text-xs text-zinc-400 hover:text-zinc-600"
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-2 text-xs text-zinc-400">
-                    Use the camera button to scan, or paste the QR payload manually.
-                  </div>
-                )}
-              </div>
-
-              {dayStatus && (dayStatus.isOffDay || dayStatus.isHoliday) && (
-                dayStatus.canCheckIn ? (
-                  <div className="flex items-start gap-3 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
-                    <span className="mt-0.5 shrink-0 text-lg">⭐</span>
-                    <div>
-                      <div className="font-medium">
-                        Overtime approved — you can work today
-                      </div>
-                      <div className="mt-0.5 text-xs text-orange-700">
-                        Today is {dayStatus.isHoliday
-                          ? `a public holiday${dayStatus.holidayName ? ` (${dayStatus.holidayName})` : ""}`
-                          : "your weekly off day"}, but an admin has scheduled
-                        you to work. Your check-in / check-out for today will
-                        be tagged as <strong>overtime</strong>.
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-                    <span className="mt-0.5 shrink-0 text-lg">🚫</span>
-                    <div>
-                      <div className="font-medium">
-                        {dayStatus.isHoliday
-                          ? `Today is a public holiday${dayStatus.holidayName ? `: ${dayStatus.holidayName}` : ""}`
-                          : "Today is your weekly off day"}
-                      </div>
-                      <div className="mt-0.5 text-xs text-red-700">
-                        Check-in is not allowed today. Ask an admin to mark
-                        today as overtime if you need to work.
-                      </div>
-                    </div>
-                  </div>
-                )
-              )}
-
-              {dayStatus && !dayStatus.isOffDay && !dayStatus.isHoliday && dayStatus.workStartTime && (
-                <div className="rounded-xl bg-zinc-50 px-4 py-2 text-xs text-zinc-500">
-                  Office hours: <strong>{dayStatus.workStartTime}</strong>
-                  {dayStatus.workEndTime && <> – <strong>{dayStatus.workEndTime}</strong></>}
-                  {" "}· Check in late and it will be flagged.
-                </div>
-              )}
-
-              {today?.session?.checkInAt && !today?.session?.checkOutAt && dayStatus?.workEndTime && (
-                <div className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs text-blue-700">
-                  <span>🕐</span>
-                  <span>Shift ends at <strong>{dayStatus.workEndTime}</strong> — check out before then to avoid an early-departure flag.</span>
-                </div>
-              )}
-
-              {error ? (
-                <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                  <span className="mt-0.5 shrink-0 text-base">✗</span>
-                  <span>{error}</span>
-                </div>
-              ) : null}
-              {warning ? (
-                <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                  <span className="mt-0.5 shrink-0 text-base">⚠</span>
-                  <span className="font-medium">{warning}</span>
-                </div>
-              ) : null}
-              {message ? (
-                <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-                  <span className="mt-0.5 shrink-0 text-base">✓</span>
-                  <span className="font-medium">{message}</span>
-                </div>
-              ) : null}
-
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  disabled={loading || !!today?.session?.checkInAt || (dayStatus !== null && !dayStatus.canCheckIn)}
-                  variant={today?.session?.checkInAt ? "success" : "primary"}
-                  onClick={() => doAction("/api/attendance/check-in", "Check-in")}
-                >
-                  {today?.session?.checkInAt
-                    ? `Checked In ✓ ${new Date(today.session.checkInAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                    : loading ? "Checking in…" : "Check In"}
-                </Button>
-                <Button
-                  disabled={loading || !today?.session?.checkInAt || !!today?.session?.checkOutAt || (dayStatus !== null && !dayStatus.canCheckIn)}
-                  variant={today?.session?.checkOutAt ? "success" : "secondary"}
-                  onClick={() => doAction("/api/attendance/check-out", "Check-out")}
-                >
-                  {today?.session?.checkOutAt
-                    ? `Checked Out ✓ ${new Date(today.session.checkOutAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                    : loading ? "Checking out…" : "Check Out"}
-                </Button>
-              </div>
+        {/* ── Greeting banner ── */}
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white border border-zinc-200 px-5 py-4 shadow-sm">
+          <div>
+            <div className="text-lg font-semibold text-zinc-900">
+              {greeting}{me?.name ? `, ${me.name.split(" ")[0]}` : ""}
             </div>
-          </Card>
-
-          <Card title="Leave Balance">
-            {leaveBalances.filter((b) => b.leaveType !== "unpaid").length > 0 ? (
-              <div className="grid grid-cols-3 gap-2">
-                {leaveBalances.filter((b) => b.leaveType !== "unpaid").map((b) => {
-                  const total = b.entitlementDays + b.carriedOverDays;
-                  const pct = total > 0 ? Math.max(0, Math.min(100, (b.remainingDays / total) * 100)) : 0;
-                  return (
-                    <div key={b.leaveType} className="rounded-xl border border-zinc-200 bg-white p-3">
-                      <div className="text-xs font-medium text-zinc-500 mb-1">{LEAVE_TYPE_LABELS[b.leaveType]}</div>
-                      {b.isSet ? (
-                        <>
-                          <div className="text-lg font-bold text-zinc-900">{b.remainingDays}d</div>
-                          <div className="text-xs text-zinc-400">of {total}d</div>
-                          <div className="mt-2 h-1.5 w-full rounded-full bg-zinc-100">
-                            <div
-                              className={`h-1.5 rounded-full ${b.remainingDays > 0 ? "bg-emerald-400" : "bg-red-400"}`}
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-xs text-zinc-400 mt-1">Not set</div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-sm text-zinc-400">No leave balance configured yet. Contact your administrator.</div>
+            <div className="mt-0.5 text-sm text-zinc-500">{todayLabel}</div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {dayStatus?.isHoliday && (
+              <span className="rounded-full bg-indigo-50 border border-indigo-200 px-3 py-1 text-xs font-medium text-indigo-700">
+                🏖 Holiday{dayStatus.holidayName ? ` · ${dayStatus.holidayName}` : ""}
+              </span>
             )}
-          </Card>
-
-          <Card title="Leave Request">
-            <div className="grid gap-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-800">Leave Type</label>
-                <select
-                  value={leaveType}
-                  onChange={(e) => setLeaveType(e.target.value as any)}
-                  className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm focus:ring-4 focus:ring-zinc-100"
-                >
-                  <option value="annual">Annual Leave</option>
-                  <option value="sick">Sick Leave</option>
-                  <option value="casual">Casual Leave</option>
-                  <option value="unpaid">Unpaid Leave</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-800">Start</label>
-                  <Input type="date" value={leaveStart} onChange={(e) => setLeaveStart(e.target.value)} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-800">End</label>
-                  <Input type="date" value={leaveEnd} onChange={(e) => setLeaveEnd(e.target.value)} />
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-800">Reason (optional)</label>
-                <Textarea value={leaveReason} onChange={(e) => setLeaveReason(e.target.value)} rows={3} placeholder="Reason" />
-              </div>
-
-              {leaveError ? <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{leaveError}</div> : null}
-              {leaveSuccess ? (
-                <div className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{leaveSuccess}</div>
-              ) : null}
-
-              <Button disabled={leaveLoading} onClick={submitLeave}>
-                {leaveLoading ? "Submitting..." : "Submit request"}
-              </Button>
-
-              <div className="mt-2">
-                <div className="mb-2 text-sm font-medium text-zinc-800">Your requests</div>
-                <div className="space-y-2">
-                  {leaveRows.slice(0, 5).map((r) => (
-                    <div key={r.id} className="rounded-xl border border-zinc-200 bg-white p-3 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`rounded-lg px-2 py-0.5 text-xs font-medium ${LEAVE_TYPE_COLORS[r.leaveType] ?? "bg-zinc-50 text-zinc-700"}`}>
-                            {LEAVE_TYPE_LABELS[r.leaveType] ?? r.leaveType}
-                          </span>
-                          <div className="text-zinc-900">
-                            {fmtDate(r.startDate)} — {fmtDate(r.endDate)}
-                          </div>
-                        </div>
-                        <span className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700">
-                          {r.status}
-                        </span>
-                      </div>
-                      {r.reason ? <div className="mt-1 text-xs text-zinc-500">{r.reason}</div> : null}
-                    </div>
-                  ))}
-                  {leaveRows.length === 0 ? <div className="text-xs text-zinc-500">No leave requests yet.</div> : null}
-                </div>
-              </div>
-            </div>
-          </Card>
+            {dayStatus?.isOffDay && !dayStatus.isHoliday && (
+              <span className="rounded-full bg-violet-50 border border-violet-200 px-3 py-1 text-xs font-medium text-violet-700">
+                📅 Office Off Day
+              </span>
+            )}
+            {checkedOut ? (
+              <span className="rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                ✓ Completed · out {new Date(today!.session!.checkOutAt!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            ) : checkedIn ? (
+              <span className="rounded-full bg-blue-50 border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700">
+                ● In since {new Date(today!.session!.checkInAt!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            ) : (
+              <span className="rounded-full bg-zinc-100 border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-500">
+                Not checked in yet
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="space-y-6">
-          <Card title="Your Profile">
-            <div className="flex items-start gap-4">
-              <div className="h-14 w-14 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
-                {me?.photoUrl ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setPhotoExpanded(true)}
-                      className="h-full w-full focus:outline-none"
-                    >
-                      <img src={me.photoUrl} alt="Profile" className="h-full w-full object-cover hover:opacity-90 transition-opacity cursor-pointer" />
-                    </button>
-                    {photoExpanded && (
-                      <button
-                        type="button"
-                        onClick={() => setPhotoExpanded(false)}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm w-full focus:outline-none"
-                      >
-                        <img
-                          src={me.photoUrl}
-                          alt="Profile"
-                          className="h-64 w-64 rounded-2xl object-cover shadow-2xl border-4 border-white"
-                        />
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs text-zinc-400">No photo</div>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+
+            {/* ── Check In / Check Out card ── */}
+            <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
+              <div className="border-b border-zinc-100 px-5 py-4">
+                <h2 className="text-base font-semibold text-zinc-900">Attendance Check-In</h2>
+                {dayStatus && !dayStatus.isOffDay && !dayStatus.isHoliday && dayStatus.workStartTime && (
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    Office hours: <strong>{dayStatus.workStartTime}</strong>
+                    {dayStatus.workEndTime && <> – <strong>{dayStatus.workEndTime}</strong></>}
+                  </p>
                 )}
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium text-zinc-900">{me?.name ?? "-"}</div>
-                <div className="truncate text-xs text-zinc-500">{me?.email ?? ""}</div>
-              </div>
-            </div>
 
-            <div className="mt-4 text-sm text-zinc-700">
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Employee ID</span>
-                <span className="font-medium">{me?.employeeId ?? "-"}</span>
-              </div>
-              <div className="mt-2 flex justify-between">
-                <span className="text-zinc-500">Phone</span>
-                <span className="font-medium">{me?.phone ?? "-"}</span>
-              </div>
-              <div className="mt-2 flex justify-between">
-                <span className="text-zinc-500">Department</span>
-                <span className="font-medium">{me?.department ?? "-"}</span>
-              </div>
-              <div className="mt-2 flex justify-between">
-                <span className="text-zinc-500">Job title</span>
-                <span className="font-medium">{me?.jobTitle ?? "-"}</span>
-              </div>
-              <div className="mt-2 flex justify-between">
-                <span className="text-zinc-500">Address</span>
-                <span className="ml-4 text-right font-medium">{me?.address ?? "-"}</span>
-              </div>
-            </div>
-          </Card>
+              <div className="p-5 space-y-5">
 
-          <Card title="Your Session">
-            <div className="text-sm text-zinc-700">
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Role</span>
-                <span className="font-medium">{user?.role ?? "-"}</span>
-              </div>
+                {/* Step 1 — Office */}
+                {offices.length > 1 && (
+                  <div className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white">1</div>
+                      <div className="mt-1 flex-1 w-px bg-zinc-200" />
+                    </div>
+                    <div className="flex-1 pb-2">
+                      <div className="mb-1.5 text-sm font-medium text-zinc-800">Select Office</div>
+                      <select
+                        value={officeId}
+                        onChange={(e) => setOfficeId(e.target.value)}
+                        className="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm focus:bg-white focus:ring-4 focus:ring-zinc-100 transition"
+                      >
+                        {offices.map((o) => (
+                          <option key={o.id} value={o.id}>{o.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
 
-              <div className="mt-4 space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">Today check-in</span>
-                  <span className="font-medium">{today?.session?.checkInAt ? new Date(today.session.checkInAt).toLocaleTimeString() : "-"}</span>
+                {/* Step 2 — GPS */}
+                <div className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${gps ? "bg-emerald-500" : "bg-zinc-900"}`}>
+                      {gps ? "✓" : offices.length > 1 ? "2" : "1"}
+                    </div>
+                    <div className="mt-1 flex-1 w-px bg-zinc-200" />
+                  </div>
+                  <div className="flex-1 pb-2">
+                    <div className="mb-1.5 text-sm font-medium text-zinc-800">Location</div>
+                    {gps ? (
+                      <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                        <div>
+                          <div className="text-sm font-semibold text-emerald-800">✓ Location captured</div>
+                          <div className="mt-0.5 text-xs text-emerald-600">
+                            {gps.lat.toFixed(5)}, {gps.lng.toFixed(5)}
+                            {gps.accuracyM ? ` · ±${Math.round(gps.accuracyM)}m` : ""}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={getLocation}
+                          className="text-xs text-emerald-700 hover:underline"
+                        >
+                          Refresh
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={getLocation}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 py-3.5 text-sm font-medium text-zinc-700 transition hover:border-zinc-400 hover:bg-white active:scale-[0.98]"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+                        </svg>
+                        Tap to get GPS location
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">Today check-out</span>
-                  <span className="font-medium">{today?.session?.checkOutAt ? new Date(today.session.checkOutAt).toLocaleTimeString() : "-"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">Office</span>
-                  <span className="font-medium">{today?.session?.office?.name ?? "-"}</span>
-                </div>
-              </div>
 
-              <div className="mt-2 text-xs text-zinc-500">
-                Backend enforces GPS + QR expiry for both check-in and check-out.
+                {/* Step 3 — QR */}
+                <div className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${qrDecoded?.ok ? "bg-emerald-500" : "bg-zinc-900"}`}>
+                      {qrDecoded?.ok ? "✓" : offices.length > 1 ? "3" : "2"}
+                    </div>
+                    <div className="mt-1 flex-1 w-px bg-zinc-200" />
+                  </div>
+                  <div className="flex-1 pb-2">
+                    <div className="mb-1.5 text-sm font-medium text-zinc-800">Scan QR Code</div>
+
+                    {qrDecoded?.ok ? (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm font-semibold text-emerald-800">✓ QR code ready</div>
+                            {qrDecoded.officeName && (
+                              <div className="mt-0.5 text-xs text-emerald-700">Office: <strong>{qrDecoded.officeName}</strong></div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setQrPayload("")}
+                            className="text-xs text-emerald-700 hover:underline"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+                    ) : qrDecoded && !qrDecoded.ok ? (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                        ⚠ Invalid QR — make sure it was generated by this system.
+                        <button type="button" onClick={() => setQrPayload("")} className="ml-2 text-xs underline">Clear</button>
+                      </div>
+                    ) : null}
+
+                    {scannerError && (
+                      <div className="mb-2 rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{scannerError}</div>
+                    )}
+
+                    {scannerOpen && (
+                      <div className="mb-3 overflow-hidden rounded-xl border border-zinc-200 bg-black">
+                        <video ref={videoRef} className="aspect-video w-full" playsInline muted />
+                        <canvas ref={canvasRef} className="hidden" />
+                      </div>
+                    )}
+
+                    {!qrDecoded?.ok && (
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          onClick={scannerOpen ? stopScanner : startScanner}
+                          className={`flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed py-3.5 text-sm font-medium transition active:scale-[0.98] ${
+                            scannerOpen
+                              ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
+                              : "border-zinc-300 bg-zinc-50 text-zinc-700 hover:border-zinc-400 hover:bg-white"
+                          }`}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+                          </svg>
+                          {scannerOpen ? "Stop camera" : "Scan with camera"}
+                        </button>
+                        <Textarea
+                          value={qrPayload}
+                          onChange={(e) => setQrPayload(e.target.value)}
+                          rows={2}
+                          placeholder="Or paste QR payload manually…"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Step 4 — Action */}
+                <div className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${checkedOut ? "bg-emerald-500" : checkedIn ? "bg-blue-500" : "bg-zinc-900"}`}>
+                      {checkedOut ? "✓" : offices.length > 1 ? "4" : "3"}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="mb-3 text-sm font-medium text-zinc-800">Check In / Check Out</div>
+
+                    {/* Day status banners */}
+                    {dayStatus && (dayStatus.isOffDay || dayStatus.isHoliday) && (
+                      dayStatus.canCheckIn ? (
+                        <div className="mb-3 flex items-start gap-3 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
+                          <span className="shrink-0 text-lg">⭐</span>
+                          <div>
+                            <div className="font-medium">Overtime approved — you can work today</div>
+                            <div className="mt-0.5 text-xs text-orange-700">
+                              Today is {dayStatus.isHoliday ? `a holiday${dayStatus.holidayName ? ` (${dayStatus.holidayName})` : ""}` : "your off day"},
+                              but you are scheduled for overtime.
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mb-3 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                          <span className="shrink-0 text-lg">🚫</span>
+                          <div>
+                            <div className="font-medium">
+                              {dayStatus.isHoliday
+                                ? `Public holiday${dayStatus.holidayName ? ` · ${dayStatus.holidayName}` : ""}`
+                                : "Weekly off day"}
+                            </div>
+                            <div className="mt-0.5 text-xs text-red-700">Check-in is not available today.</div>
+                          </div>
+                        </div>
+                      )
+                    )}
+
+                    {today?.session?.checkInAt && !checkedOut && dayStatus?.workEndTime && (
+                      <div className="mb-3 flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs text-blue-700">
+                        <span>🕐</span>
+                        <span>Shift ends at <strong>{dayStatus.workEndTime}</strong> — remember to check out.</span>
+                      </div>
+                    )}
+
+                    {/* Feedback messages */}
+                    {error && (
+                      <div className="mb-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        <span>✗</span><span>{error}</span>
+                      </div>
+                    )}
+                    {warning && (
+                      <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                        <span>⚠</span><span>{warning}</span>
+                      </div>
+                    )}
+                    {message && (
+                      <div className="mb-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+                        <span>✓</span><span>{message}</span>
+                      </div>
+                    )}
+
+                    {/* Action buttons */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        disabled={loading || checkedIn || (dayStatus !== null && !dayStatus.canCheckIn)}
+                        onClick={() => doAction("/api/attendance/check-in", "Check-in")}
+                        className={`flex h-14 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-all active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed
+                          ${checkedIn
+                            ? "bg-emerald-500 text-white cursor-default"
+                            : "bg-zinc-900 text-white hover:bg-zinc-700 shadow-md shadow-zinc-900/20"
+                          }`}
+                      >
+                        {checkedIn ? (
+                          <>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                            {new Date(today!.session!.checkInAt!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </>
+                        ) : loading ? "Checking in…" : (
+                          <>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" y1="12" x2="3" y2="12" /></svg>
+                            Check In
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={loading || !checkedIn || checkedOut || (dayStatus !== null && !dayStatus.canCheckIn)}
+                        onClick={() => doAction("/api/attendance/check-out", "Check-out")}
+                        className={`flex h-14 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-all active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed
+                          ${checkedOut
+                            ? "bg-emerald-500 text-white cursor-default"
+                            : "border-2 border-zinc-200 bg-white text-zinc-800 hover:border-zinc-300 hover:bg-zinc-50"
+                          }`}
+                      >
+                        {checkedOut ? (
+                          <>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                            {new Date(today!.session!.checkOutAt!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </>
+                        ) : loading ? "Checking out…" : (
+                          <>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+                            Check Out
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
-          </Card>
 
-          <Card title="Tips">
-            <div className="space-y-2 text-sm text-zinc-700">
-              <div>1) Choose your office</div>
-              <div>2) Tap <strong>Get GPS</strong> — allow location</div>
-              <div>3) Tap <strong>Scan with camera</strong> and point at the QR code — or paste the payload manually</div>
-              <div>4) Tap <strong>Check In</strong> or <strong>Check Out</strong></div>
+            {/* ── Leave Balance ── */}
+            <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
+              <div className="border-b border-zinc-100 px-5 py-4">
+                <h2 className="text-base font-semibold text-zinc-900">Leave Balance</h2>
+              </div>
+              <div className="p-5">
+                {leaveBalances.filter((b) => b.leaveType !== "unpaid").length > 0 ? (
+                  <div className="grid grid-cols-3 gap-3">
+                    {leaveBalances.filter((b) => b.leaveType !== "unpaid").map((b) => {
+                      const total = b.entitlementDays + b.carriedOverDays;
+                      const pct = total > 0 ? Math.max(0, Math.min(100, (b.remainingDays / total) * 100)) : 0;
+                      return (
+                        <div key={b.leaveType} className="rounded-xl border border-zinc-100 bg-zinc-50 p-3">
+                          <div className="text-[11px] uppercase tracking-wider font-medium text-zinc-400 mb-2">{LEAVE_TYPE_LABELS[b.leaveType]}</div>
+                          {b.isSet ? (
+                            <>
+                              <div className="text-2xl font-bold text-zinc-900">{b.remainingDays}<span className="text-sm font-normal text-zinc-400">d</span></div>
+                              <div className="text-xs text-zinc-400 mb-2">of {total} days</div>
+                              <div className="h-1.5 w-full rounded-full bg-zinc-200">
+                                <div
+                                  className={`h-1.5 rounded-full transition-all ${b.remainingDays > 0 ? "bg-emerald-400" : "bg-red-400"}`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-xs text-zinc-400">Not configured</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-sm text-zinc-400">No leave balance configured yet. Contact your administrator.</div>
+                )}
+              </div>
             </div>
-          </Card>
+
+            {/* ── Leave Request ── */}
+            <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
+              <div className="border-b border-zinc-100 px-5 py-4">
+                <h2 className="text-base font-semibold text-zinc-900">Apply for Leave</h2>
+              </div>
+              <div className="p-5 space-y-4">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-zinc-700">Leave Type</label>
+                  <select
+                    value={leaveType}
+                    onChange={(e) => setLeaveType(e.target.value as any)}
+                    className="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm focus:bg-white focus:ring-4 focus:ring-zinc-100 transition"
+                  >
+                    <option value="annual">Annual Leave</option>
+                    <option value="sick">Sick Leave</option>
+                    <option value="casual">Casual Leave</option>
+                    <option value="unpaid">Unpaid Leave</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-zinc-700">Start Date</label>
+                    <Input type="date" value={leaveStart} onChange={(e) => setLeaveStart(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-zinc-700">End Date</label>
+                    <Input type="date" value={leaveEnd} onChange={(e) => setLeaveEnd(e.target.value)} />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-zinc-700">Reason <span className="text-zinc-400 font-normal">(optional)</span></label>
+                  <Textarea value={leaveReason} onChange={(e) => setLeaveReason(e.target.value)} rows={3} placeholder="Briefly describe your reason…" />
+                </div>
+
+                {leaveError && <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{leaveError}</div>}
+                {leaveSuccess && <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">{leaveSuccess}</div>}
+
+                <button
+                  type="button"
+                  disabled={leaveLoading}
+                  onClick={submitLeave}
+                  className="flex h-11 w-full items-center justify-center rounded-xl bg-zinc-900 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-50 active:scale-[0.98]"
+                >
+                  {leaveLoading ? "Submitting…" : "Submit Leave Request"}
+                </button>
+
+                {leaveRows.length > 0 && (
+                  <div>
+                    <div className="mb-3 text-sm font-medium text-zinc-700">Recent Requests</div>
+                    <div className="space-y-2">
+                      {leaveRows.slice(0, 5).map((r) => (
+                        <div key={r.id} className="flex items-center justify-between rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`shrink-0 rounded-lg px-2 py-0.5 text-xs font-medium ${LEAVE_TYPE_COLORS[r.leaveType] ?? "bg-zinc-100 text-zinc-600"}`}>
+                              {LEAVE_TYPE_LABELS[r.leaveType] ?? r.leaveType}
+                            </span>
+                            <span className="truncate text-zinc-700">{fmtDate(r.startDate)} — {fmtDate(r.endDate)}</span>
+                          </div>
+                          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            r.status === "approved" ? "bg-emerald-50 text-emerald-700" :
+                            r.status === "rejected" ? "bg-red-50 text-red-700" :
+                            "bg-amber-50 text-amber-700"
+                          }`}>
+                            {r.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          {/* ── Sidebar ── */}
+          <div className="space-y-5">
+
+            {/* Profile card */}
+            <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
+              <div className="border-b border-zinc-100 px-5 py-4">
+                <h2 className="text-base font-semibold text-zinc-900">My Profile</h2>
+              </div>
+              <div className="p-5">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100">
+                    {me?.photoUrl ? (
+                      <>
+                        <button type="button" onClick={() => setPhotoExpanded(true)} className="h-full w-full focus:outline-none">
+                          <img src={me.photoUrl} alt="Profile" className="h-full w-full object-cover hover:opacity-90 transition-opacity cursor-pointer" />
+                        </button>
+                        {photoExpanded && (
+                          <button type="button" onClick={() => setPhotoExpanded(false)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm w-full focus:outline-none">
+                            <img src={me.photoUrl} alt="Profile" className="h-64 w-64 rounded-2xl object-cover shadow-2xl border-4 border-white" />
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-2xl text-zinc-300">
+                        {me?.name ? me.name.charAt(0).toUpperCase() : "?"}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-zinc-900 truncate">{me?.name ?? "—"}</div>
+                    <div className="text-xs text-zinc-500 truncate">{me?.jobTitle ?? me?.department ?? ""}</div>
+                    <div className="text-xs text-zinc-400 truncate">{me?.email ?? ""}</div>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  {[
+                    { label: "Employee ID", value: me?.employeeId },
+                    { label: "Department", value: me?.department },
+                    { label: "Phone", value: me?.phone },
+                    { label: "Role", value: user?.role },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="flex items-center justify-between gap-2 rounded-lg bg-zinc-50 px-3 py-2">
+                      <span className="text-zinc-500 text-xs">{label}</span>
+                      <span className="font-medium text-zinc-800 text-xs text-right">{value ?? "—"}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <a
+                  href="/profile"
+                  className="mt-4 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition"
+                >
+                  Edit Profile
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="6,3 11,8 6,13" /></svg>
+                </a>
+              </div>
+            </div>
+
+            {/* Today's session summary */}
+            <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
+              <div className="border-b border-zinc-100 px-5 py-4">
+                <h2 className="text-base font-semibold text-zinc-900">Today's Session</h2>
+              </div>
+              <div className="divide-y divide-zinc-100 text-sm">
+                {[
+                  { label: "Check-in", value: today?.session?.checkInAt ? new Date(today.session.checkInAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—" },
+                  { label: "Check-out", value: today?.session?.checkOutAt ? new Date(today.session.checkOutAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—" },
+                  { label: "Office", value: today?.session?.office?.name ?? "—" },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-center justify-between px-5 py-3">
+                    <span className="text-zinc-500">{label}</span>
+                    <span className="font-medium text-zinc-800">{value}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="px-5 pb-4 pt-3">
+                <a
+                  href="/employee/history"
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition"
+                >
+                  View Full History
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="6,3 11,8 6,13" /></svg>
+                </a>
+              </div>
+            </div>
+
+          </div>
         </div>
       </div>
     </AppShell>

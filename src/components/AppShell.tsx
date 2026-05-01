@@ -180,20 +180,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <nav className="hidden md:flex items-center gap-0.5 text-sm min-w-0">
             <NavLink href="/employee" active={pathname === "/employee"}>
-              Check In/Out
+              <span className="inline-flex items-center gap-1.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Check In/Out
+              </span>
             </NavLink>
             <NavLink href="/employee/history" active={pathname.startsWith("/employee/history")}>
-              My History
+              <span className="inline-flex items-center gap-1.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                My History
+              </span>
             </NavLink>
             <NavLink href="/sales" active={pathname.startsWith("/sales")}>
-              Sales
+              <span className="inline-flex items-center gap-1.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+                Sales
+              </span>
             </NavLink>
             <NavLink href="/profile" active={pathname === "/profile"}>
-              Profile
+              <span className="inline-flex items-center gap-1.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Profile
+              </span>
             </NavLink>
             {user && (
               <NavLink href="/pending" active={pathname === "/pending"}>
                 <span className="inline-flex items-center gap-1.5">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                   Pending
                   {pendingTotal > 0 && (
                     <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1.5 text-[11px] font-semibold leading-5 text-white">
@@ -205,7 +218,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
             {(user?.role === "manager" || user?.role === "admin") && (
               <NavLink href="/manager" active={pathname.startsWith("/manager")}>
-                Manager
+                <span className="inline-flex items-center gap-1.5">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  Manager
+                </span>
               </NavLink>
             )}
 
@@ -306,20 +322,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {menuOpen && (
           <div className="md:hidden border-t border-zinc-100 bg-white px-3 py-2 flex flex-col gap-0.5 text-sm shadow-md max-h-[80vh] overflow-y-auto">
             <MobileNavLink href="/employee" active={pathname === "/employee"} onClick={() => setMenuOpen(false)}>
-              Check In / Out
+              <span className="inline-flex items-center gap-2.5">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Check In / Out
+              </span>
             </MobileNavLink>
             <MobileNavLink href="/employee/history" active={pathname.startsWith("/employee/history")} onClick={() => setMenuOpen(false)}>
-              My History
+              <span className="inline-flex items-center gap-2.5">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                My History
+              </span>
             </MobileNavLink>
             <MobileNavLink href="/sales" active={pathname.startsWith("/sales")} onClick={() => setMenuOpen(false)}>
-              Sales
+              <span className="inline-flex items-center gap-2.5">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+                Sales
+              </span>
             </MobileNavLink>
             <MobileNavLink href="/profile" active={pathname === "/profile"} onClick={() => setMenuOpen(false)}>
-              Profile
+              <span className="inline-flex items-center gap-2.5">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Profile
+              </span>
             </MobileNavLink>
             {user && (
               <MobileNavLink href="/pending" active={pathname === "/pending"} onClick={() => setMenuOpen(false)}>
-                <span className="inline-flex items-center gap-2">
+                <span className="inline-flex items-center gap-2.5">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                   Pending
                   {pendingTotal > 0 && (
                     <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1.5 text-[11px] font-semibold leading-5 text-white">
@@ -331,7 +360,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
             {(user?.role === "manager" || user?.role === "admin") && (
               <MobileNavLink href="/manager" active={pathname.startsWith("/manager")} onClick={() => setMenuOpen(false)}>
-                Manager
+                <span className="inline-flex items-center gap-2.5">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  Manager
+                </span>
               </MobileNavLink>
             )}
             {user?.role === "admin" && (
