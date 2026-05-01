@@ -9,25 +9,25 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@capacitor/core": "^6.1.2",
+    "@capacitor/core": "^6.2.1",
     "@capacitor/filesystem": "^6.0.4",
     "@capacitor/share": "^6.0.4",
     "@prisma/client": "^6.19.3",
-    "@supabase/supabase-js": "^2.103.0",
+    "@supabase/supabase-js": "^2.105.1",
     "@zxing/browser": "^0.1.5",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
-    "jose": "^6.2.2",
+    "jose": "^6.2.3",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
-    "next": "^14.2.24",
+    "next": "^14.2.35",
     "qrcode": "^1.5.4",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "zod": "^4.3.6"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^4.4.1"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.2.2",
+    "@tailwindcss/postcss": "^4.2.4",
     "@types/node": "^20.19.39",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.28",
@@ -35,7 +35,7 @@
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.24",
     "prisma": "^6.19.3",
-    "tailwindcss": "^4.2.2",
+    "tailwindcss": "^4.2.4",
     "typescript": "^5.9.3"
   }
 }
