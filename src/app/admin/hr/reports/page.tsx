@@ -21,6 +21,7 @@ type AbsentData = {
   present: AbsentUser[];
   total: number;
   holiday: { id: string; name: string } | null;
+  offDay: { isOffDay: boolean; allOffices: boolean; officeName: string | null } | null;
 };
 
 type SummaryRow = {
@@ -139,6 +140,23 @@ export default function HRReportsPage() {
         {/* ABSENT TODAY */}
         {!loading && activeTab === "absent_today" && data && (
           <div className="space-y-4">
+            {/* Off Day banner (weekly recurring off day e.g. Friday) */}
+            {data.offDay?.isOffDay && !data.holiday && (
+              <div className="flex items-center gap-2 rounded-xl bg-violet-50 border border-violet-200 px-4 py-3">
+                <span className="text-xl">📅</span>
+                <div>
+                  <div className="font-semibold text-violet-800 text-sm">
+                    Office Off Day{data.offDay.officeName ? ` — ${data.offDay.officeName}` : ""}
+                  </div>
+                  <div className="text-xs text-violet-600">
+                    Today is a scheduled off day. Staff are not expected to attend.
+                    {!data.offDay.allOffices ? " (Applies to some offices only.)" : ""}
+                    {data.absent.length > 0 ? " The staff below had a workday override scheduled." : ""}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Holiday banner */}
             {data.holiday && (
               <div className="flex items-center gap-2 rounded-xl bg-indigo-50 border border-indigo-200 px-4 py-3">

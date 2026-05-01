@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "../../../../../lib/prisma";
 import { assertRole, getBearerToken, verifyAccessToken } from "../../../../../lib/auth";
+import { isOffDay } from "../../../../../lib/schedule";
 
 async function getAdmin(req: Request) {
   const token = getBearerToken(req.headers.get("authorization"));
@@ -42,7 +43,8 @@ export async function GET(req: Request) {
     const tomorrow = new Date(today);
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
-    const [allActive, todaySessions, approvedLeaves, outstationToday, holidayToday] = await Promise.all([
+    // Fetch all data in parallel — including offices to detect weekly off days
+    const [allActive, todaySessions, approvedLeaves, outstationToday, holidayToday, offices, workdayOverrides] = await Promise.all([
       prisma.user.findMany({
         where: { isActive: true, role: { in: ["employee", "manager"] } },
         select: { id: true, name: true, email: true, department: true, jobTitle: true, phone: true },
@@ -63,22 +65,60 @@ export async function GET(req: Request) {
         where: { date: { gte: today, lt: tomorrow } },
         select: { id: true, name: true },
       }),
+      prisma.office.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true, weeklyOffDays: true, timezone: true },
+      }),
+      // WorkdayOverride = someone scheduled to work on an otherwise-off day
+      prisma.workdayOverride.findMany({
+        where: { date: today, isOvertime: true },
+        select: { userId: true },
+      }),
     ]);
 
-    const presentIds    = new Set(todaySessions.map((s) => s.userId));
-    const onLeaveIds    = new Set(approvedLeaves.map((l) => l.userId));
-    const outstationIds = new Set(outstationToday.map((o) => o.userId));
+    // Determine if today is an office off day (use the first office's schedule;
+    // if any office treats today as a workday the report is considered a workday)
+    const offDayInfo = offices.length > 0
+      ? offices.map((o) => ({
+          name: o.name,
+          isOff: isOffDay(today, o.weeklyOffDays, o.timezone ?? "UTC"),
+        }))
+      : [];
+    const allOfficesOnBreak = offDayInfo.length > 0 && offDayInfo.every((o) => o.isOff);
+    const someOfficesOnBreak = offDayInfo.some((o) => o.isOff);
+    const offDayOfficeName = offDayInfo.find((o) => o.isOff)?.name ?? null;
 
-    // Absent = not present, not on approved leave, not on outstation
-    const absent      = allActive.filter((u) => !presentIds.has(u.id) && !onLeaveIds.has(u.id) && !outstationIds.has(u.id));
-    const onLeave     = allActive.filter((u) => onLeaveIds.has(u.id));
+    // Users who have a WorkdayOverride are expected to work even on off days
+    const overrideIds    = new Set(workdayOverrides.map((w) => w.userId));
+    const presentIds     = new Set(todaySessions.map((s) => s.userId));
+    const onLeaveIds     = new Set(approvedLeaves.map((l) => l.userId));
+    const outstationIds  = new Set(outstationToday.map((o) => o.userId));
+
+    let absent: typeof allActive;
+
+    if (allOfficesOnBreak && !holidayToday) {
+      // It's a weekly off day — only those with WorkdayOverride are expected to attend
+      absent = allActive.filter(
+        (u) => overrideIds.has(u.id) && !presentIds.has(u.id) && !onLeaveIds.has(u.id) && !outstationIds.has(u.id),
+      );
+    } else {
+      // Normal workday — standard absent logic (exclude leave + outstation)
+      absent = allActive.filter(
+        (u) => !presentIds.has(u.id) && !onLeaveIds.has(u.id) && !outstationIds.has(u.id),
+      );
+    }
+
+    const onLeave      = allActive.filter((u) => onLeaveIds.has(u.id));
     const onOutstation = allActive.filter((u) => outstationIds.has(u.id) && !onLeaveIds.has(u.id));
-    const present     = allActive.filter((u) => presentIds.has(u.id));
+    const present      = allActive.filter((u) => presentIds.has(u.id));
 
     return NextResponse.json({
       type, absent, onLeave, onOutstation, present,
       total: allActive.length,
       holiday: holidayToday ?? null,
+      offDay: allOfficesOnBreak || someOfficesOnBreak
+        ? { isOffDay: true, allOffices: allOfficesOnBreak, officeName: offDayOfficeName }
+        : null,
     });
   }
 
