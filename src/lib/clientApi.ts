@@ -16,9 +16,8 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   }
 
   if (!res.ok) {
-    const message: string =
-      (data && (data.error || data.message) && String(data.error || data.message)) ||
-      `Request failed (HTTP ${res.status})`;
+    const rawMessage = data?.error || data?.message;
+    const message = rawMessage ? String(rawMessage) : `Request failed (HTTP ${res.status})`;
     const err = new Error(message) as Error & { status: number };
     err.status = res.status;
     throw err;
