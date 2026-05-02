@@ -19,6 +19,9 @@ type TeamRow = {
   checkInAt: string | null;
   checkOutAt: string | null;
   officeName: string | null;
+  isLateArrival: boolean;
+  isEarlyDeparture: boolean;
+  minutesLate: number | null;
 };
 
 type LeaveRow = {
@@ -147,6 +150,7 @@ export default function ManagerPage() {
                     <th className="px-4 py-3 text-left">Employee</th>
                     <th className="px-4 py-3 text-left">Date</th>
                     <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Flags</th>
                     <th className="px-4 py-3 text-left">Check-in</th>
                     <th className="px-4 py-3 text-left">Check-out</th>
                     <th className="px-4 py-3 text-left">Office</th>
@@ -163,13 +167,27 @@ export default function ManagerPage() {
                       <td className="px-4 py-3">
                         <span className={`rounded-lg px-2 py-1 text-xs font-medium ${STATUS_COLORS[r.status] ?? "bg-zinc-100 text-zinc-600"}`}>{r.status}</span>
                       </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {r.isLateArrival && (
+                            <span className="rounded-lg px-2 py-0.5 text-xs font-medium bg-orange-50 text-orange-700">
+                              Late{r.minutesLate ? ` ${r.minutesLate}m` : ""}
+                            </span>
+                          )}
+                          {r.isEarlyDeparture && (
+                            <span className="rounded-lg px-2 py-0.5 text-xs font-medium bg-yellow-50 text-yellow-700">
+                              Early out
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-xs text-zinc-600">{r.checkInAt ? new Date(r.checkInAt).toLocaleTimeString() : "-"}</td>
                       <td className="px-4 py-3 text-xs text-zinc-600">{r.checkOutAt ? new Date(r.checkOutAt).toLocaleTimeString() : "-"}</td>
                       <td className="px-4 py-3 text-xs text-zinc-500">{r.officeName ?? "-"}</td>
                     </tr>
                   ))}
                   {rows.length === 0 && (
-                    <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-400">{loading ? "Loading…" : "No team members or no data for this period."}</td></tr>
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400">{loading ? "Loading…" : "No team members or no data for this period."}</td></tr>
                   )}
                 </tbody>
               </table>

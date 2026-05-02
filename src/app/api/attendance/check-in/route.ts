@@ -137,13 +137,25 @@ export async function POST(req: Request) {
   });
 
   if (isLateArrival && minutesLate && minutesLate > 0) {
-    const employee = await prisma.user.findUnique({ where: { id: authUser.id }, select: { name: true } });
+    const employee = await prisma.user.findUnique({
+      where: { id: authUser.id },
+      select: { name: true, managerId: true },
+    });
     await notifyAdmins({
       type: "late_check_in",
       title: `Late check-in: ${employee?.name ?? "employee"}`,
       body: `${minutesLate} min late at ${office.name} · ${now.toLocaleString()}`,
       link: "/admin/attendance",
     });
+    if (employee?.managerId) {
+      await notifyUser({
+        userId: employee.managerId,
+        type: "late_check_in",
+        title: `Late check-in: ${employee.name}`,
+        body: `${minutesLate} min late at ${office.name} · ${now.toLocaleString()}`,
+        link: "/manager",
+      });
+    }
   }
 
   logActivity(

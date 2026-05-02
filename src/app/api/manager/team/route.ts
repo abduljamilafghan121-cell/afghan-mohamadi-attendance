@@ -58,6 +58,9 @@ export async function GET(req: Request) {
       status: true,
       checkInAt: true,
       checkOutAt: true,
+      isLateArrival: true,
+      isEarlyDeparture: true,
+      minutesLate: true,
       office: { select: { name: true } },
     },
   });
@@ -107,6 +110,9 @@ export async function GET(req: Request) {
         checkInAt: session?.checkInAt ?? null,
         checkOutAt: session?.checkOutAt ?? null,
         officeName: session?.office?.name ?? null,
+        isLateArrival: session?.isLateArrival ?? false,
+        isEarlyDeparture: session?.isEarlyDeparture ?? false,
+        minutesLate: session?.minutesLate ?? null,
       };
     })
   );

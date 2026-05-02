@@ -76,7 +76,7 @@ export async function PATCH(req: Request) {
     data: {
       ...rest,
       startDate: rest.startDate ? new Date(rest.startDate) : undefined,
-      endDate: rest.endDate ? new Date(rest.endDate) : rest.endDate,
+      endDate: rest.endDate ? new Date(rest.endDate) : null,
     },
   });
   logActivity(admin.id, "update_training", "hr", `Updated training ${id}`).catch(() => null);

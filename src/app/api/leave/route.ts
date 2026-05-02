@@ -69,6 +69,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "End date must be after start date" }, { status: 400 });
   }
 
+  const overlapping = await prisma.leaveRequest.findFirst({
+    where: {
+      userId: authUser.id,
+      status: { in: ["pending", "approved"] },
+      startDate: { lte: end },
+      endDate: { gte: start },
+    },
+  });
+  if (overlapping) {
+    return NextResponse.json(
+      { error: `You already have a ${overlapping.status} leave request that overlaps with these dates.` },
+      { status: 400 },
+    );
+  }
+
   const leave = await prisma.leaveRequest.create({
     data: {
       userId: authUser.id,

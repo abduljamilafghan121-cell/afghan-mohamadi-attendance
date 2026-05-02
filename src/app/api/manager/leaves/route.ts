@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { assertRole, getBearerToken, verifyAccessToken } from "../../../../lib/auth";
+import { notifyUser } from "../../../../lib/notify";
+import { logActivity } from "../../../../lib/activityLog";
+
+function countLeaveDays(start: Date, end: Date): number {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return Math.round((end.getTime() - start.getTime()) / msPerDay) + 1;
+}
 
 const DecideSchema = z.object({
   id: z.string().min(1),
@@ -76,11 +83,50 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Already decided" }, { status: 400 });
   }
 
+  const existing = await prisma.leaveRequest.findUnique({
+    where: { id: parsed.data.id },
+    select: { id: true, status: true, userId: true, startDate: true, endDate: true, leaveType: true },
+  });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const updated = await prisma.leaveRequest.update({
     where: { id: parsed.data.id },
     data: { status: parsed.data.status, decidedAt: new Date(), decidedById: authUser.id },
-    select: { id: true, status: true, decidedAt: true },
+    select: { id: true, status: true, decidedAt: true, startDate: true, endDate: true, leaveType: true },
   });
+
+  const days = countLeaveDays(existing.startDate, existing.endDate);
+  const year = existing.startDate.getUTCFullYear();
+  const leaveType = existing.leaveType;
+
+  if (parsed.data.status === "approved" && existing.status !== "approved") {
+    await prisma.leaveBalance.upsert({
+      where: { userId_year_leaveType: { userId: existing.userId, year, leaveType } },
+      create: { userId: existing.userId, year, leaveType, entitlementDays: 0, usedDays: days },
+      update: { usedDays: { increment: days } },
+    });
+  } else if (parsed.data.status === "rejected" && existing.status === "approved") {
+    await prisma.leaveBalance.upsert({
+      where: { userId_year_leaveType: { userId: existing.userId, year, leaveType } },
+      create: { userId: existing.userId, year, leaveType, entitlementDays: 0, usedDays: 0 },
+      update: { usedDays: { decrement: days } },
+    });
+  }
+
+  await notifyUser({
+    userId: existing.userId,
+    type: "leave_decided",
+    title: `Your leave request was ${parsed.data.status}`,
+    body: `${leaveType} · ${days} day${days === 1 ? "" : "s"} · ${existing.startDate.toISOString().slice(0, 10)} → ${existing.endDate.toISOString().slice(0, 10)}`,
+    link: "/profile",
+  });
+
+  logActivity(
+    authUser.id,
+    `leave_${parsed.data.status}`,
+    "manager",
+    `Leave ${parsed.data.status} for user ${existing.userId} · ${leaveType} · ${existing.startDate.toISOString().slice(0, 10)} → ${existing.endDate.toISOString().slice(0, 10)}`,
+  ).catch(() => null);
 
   return NextResponse.json({ leave: updated });
 }

@@ -4,6 +4,7 @@ import { prisma } from "../../../../lib/prisma";
 import { assertRole, getBearerToken, verifyAccessToken } from "../../../../lib/auth";
 import { notifyUser } from "../../../../lib/notify";
 import { logActivity } from "../../../../lib/activityLog";
+import { calcLateMinutes } from "../../../../lib/schedule";
 
 const DecideSchema = z.object({
   id: z.string().min(1),
@@ -63,7 +64,14 @@ export async function POST(req: Request) {
 
   const corrReq = await prisma.correctionRequest.findUnique({
     where: { id: parsed.data.id },
-    include: { session: true, user: true },
+    include: {
+      session: {
+        include: { office: true },
+      },
+      user: {
+        select: { id: true, name: true, officeId: true },
+      },
+    },
   });
   if (!corrReq) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (corrReq.status !== "pending") {
@@ -81,6 +89,7 @@ export async function POST(req: Request) {
     if (corrReq.session) {
       const sessionUpdate: Record<string, any> = { status: "corrected" };
       const auditEntries: any[] = [];
+      const office = corrReq.session.office;
 
       if ((corrReq.requestType === "check_in" || corrReq.requestType === "both") && corrReq.intendedCheckIn) {
         auditEntries.push({
@@ -92,7 +101,14 @@ export async function POST(req: Request) {
           note: `Approved correction request ${corrReq.id}`,
         });
         sessionUpdate.checkInAt = corrReq.intendedCheckIn;
+
+        if (office?.workStartTime) {
+          const late = calcLateMinutes(corrReq.intendedCheckIn, office.workStartTime, office.timezone ?? "UTC");
+          sessionUpdate.isLateArrival = late > 0;
+          sessionUpdate.minutesLate = late > 0 ? late : null;
+        }
       }
+
       if ((corrReq.requestType === "check_out" || corrReq.requestType === "both") && corrReq.intendedCheckOut) {
         auditEntries.push({
           sessionId: corrReq.session.id,
@@ -103,6 +119,17 @@ export async function POST(req: Request) {
           note: `Approved correction request ${corrReq.id}`,
         });
         sessionUpdate.checkOutAt = corrReq.intendedCheckOut;
+
+        if (office?.workEndTime) {
+          const endParts = office.workEndTime.split(":").map(Number);
+          const endHour = endParts[0] ?? 17;
+          const endMin = endParts[1] ?? 0;
+          const checkOut = corrReq.intendedCheckOut;
+          const outHour = checkOut.getHours();
+          const outMin = checkOut.getMinutes();
+          const isEarly = outHour < endHour || (outHour === endHour && outMin < endMin);
+          sessionUpdate.isEarlyDeparture = isEarly;
+        }
       }
 
       ops.push(
@@ -110,20 +137,37 @@ export async function POST(req: Request) {
         ...auditEntries.map((e) => prisma.attendanceAuditLog.create({ data: e }))
       );
     } else {
-      const firstOffice = await prisma.office.findFirst({ where: { isActive: true } });
-      if (firstOffice) {
-        ops.push(
-          prisma.attendanceSession.create({
-            data: {
-              userId: corrReq.userId,
-              officeId: firstOffice.id,
-              workDate: corrReq.workDate,
-              status: "corrected",
-              checkInAt: corrReq.intendedCheckIn ?? undefined,
-              checkOutAt: corrReq.intendedCheckOut ?? undefined,
-            },
-          })
-        );
+      const officeId = corrReq.user.officeId;
+      const office = officeId
+        ? await prisma.office.findUnique({ where: { id: officeId } })
+        : await prisma.office.findFirst({ where: { isActive: true } });
+
+      if (office) {
+        const newSessionData: Record<string, any> = {
+          userId: corrReq.userId,
+          officeId: office.id,
+          workDate: corrReq.workDate,
+          status: "corrected",
+          checkInAt: corrReq.intendedCheckIn ?? undefined,
+          checkOutAt: corrReq.intendedCheckOut ?? undefined,
+        };
+
+        if (corrReq.intendedCheckIn && office.workStartTime) {
+          const late = calcLateMinutes(corrReq.intendedCheckIn, office.workStartTime, office.timezone ?? "UTC");
+          newSessionData.isLateArrival = late > 0;
+          newSessionData.minutesLate = late > 0 ? late : null;
+        }
+
+        if (corrReq.intendedCheckOut && office.workEndTime) {
+          const endParts = office.workEndTime.split(":").map(Number);
+          const endHour = endParts[0] ?? 17;
+          const endMin = endParts[1] ?? 0;
+          const checkOut = corrReq.intendedCheckOut;
+          const isEarly = checkOut.getHours() < endHour || (checkOut.getHours() === endHour && checkOut.getMinutes() < endMin);
+          newSessionData.isEarlyDeparture = isEarly;
+        }
+
+        ops.push(prisma.attendanceSession.create({ data: newSessionData }));
       }
     }
   }

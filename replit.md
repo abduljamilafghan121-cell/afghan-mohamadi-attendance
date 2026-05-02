@@ -43,11 +43,20 @@ The application is built on Next.js 14 using the App Router, with REST API route
 - **Activity Log**: Admin-only audit trail of significant user actions across various modules.
 - **HR Module**:
     - HR Reports page with CSV and PDF export (absent today, monthly summary, late arrivals, overtime).
-    - Payroll & Salary: full payroll PDF export + per-record payslip PDF (print dialog).
+    - Payroll & Salary: full payroll PDF export + per-record payslip PDF (print dialog). Employee HR profile page also has per-row Print Slip button (includes org logo, signatures, createdBy).
     - Salary notifications via `notifyUser` when salary is recorded or paid (`salary_recorded` enum type).
+    - Emergency Contacts on employee HR profile page now has full CRUD (add/edit/delete) — modal with name, relationship, phone, phone2, notes.
+    - Employee contract creation/update auto-deactivates previous active contract for that user (transaction).
+    - Training PATCH no longer crashes when endDate is cleared (empty string → null instead of crash).
 - **Mobile Bottom Nav**: Fixed bottom bar (md:hidden) with 4 tabs — Check In/Out, Sales, History, Profile — shown for all logged-in users.
 - **Admin Nav**: Restructured admin dropdown with SVG icons + group separators (Staff, Attendance, Sales, HR, System). Scrollable with max-height on desktop.
 - **Dashboard**: Live stat tiles now include On Outstation count; "Absent Today" tile is clickable to expand/collapse absent employee list. Holiday and weekly off-day banners shown when applicable. Absent count uses the same outstation/holiday/offday exclusion logic as HR Reports.
+- **Leave System**: Overlap check added — employees cannot submit a new leave request that overlaps with an existing pending or approved request.
+- **Manager Leave Approval**: Now mirrors admin logic — updates LeaveBalance (usedDays increment/decrement), notifies the employee via `notifyUser`, and logs the action via `logActivity`.
+- **Manager Team View**: Attendance rows now include `isLateArrival`, `isEarlyDeparture`, `minutesLate` from the session. Manager page displays orange "Late Xm" and yellow "Early out" badges in the Flags column.
+- **Late Check-In**: Also notifies the employee's direct manager (via `notifyUser`) in addition to all admins.
+- **Corrections**: Fixed office selection bug (now uses user's actual `officeId`, falls back to first active office). Approved corrections recalculate `isLateArrival`/`minutesLate` for check-in corrections and `isEarlyDeparture` for check-out corrections.
+- **Visit Duplicate Products**: Returns HTTP 400 with a clear error instead of a 500 crash when the same product is submitted twice in one visit.
 
 ## External Dependencies
 - **PostgreSQL**: Primary database for all application data.

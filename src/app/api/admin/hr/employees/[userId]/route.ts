@@ -34,6 +34,7 @@ export async function GET(req: Request, { params }: { params: { userId: string }
       }),
       prisma.salaryRecord.findMany({
         where: { userId },
+        include: { createdBy: { select: { id: true, name: true } } },
         orderBy: [{ year: "desc" }, { month: "desc" }],
       }),
       prisma.performanceReview.findMany({

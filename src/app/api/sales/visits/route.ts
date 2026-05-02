@@ -64,7 +64,11 @@ export async function POST(req: Request) {
 
   let visitProductsData: { productId: string; productName: string; offeredPrice: number | null; discussion: string | null; interest: string | null }[] = [];
   if (body.data.products && body.data.products.length > 0) {
-    const ids = Array.from(new Set(body.data.products.map((p) => p.productId)));
+    const rawIds = body.data.products.map((p) => p.productId);
+    if (new Set(rawIds).size !== rawIds.length) {
+      return NextResponse.json({ error: "Duplicate products in a single visit are not allowed." }, { status: 400 });
+    }
+    const ids = rawIds;
     const products = await prisma.product.findMany({ where: { id: { in: ids } } });
     if (products.length !== ids.length) {
       return NextResponse.json({ error: "One or more products not found" }, { status: 400 });

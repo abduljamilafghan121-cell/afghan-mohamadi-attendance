@@ -51,23 +51,33 @@ export async function POST(req: Request) {
   if (!body.success) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
 
   const data = body.data;
-  const contract = await prisma.employeeContract.create({
-    data: {
-      userId: data.userId,
-      contractType: data.contractType,
-      startDate: new Date(data.startDate),
-      endDate: data.endDate ? new Date(data.endDate) : null,
-      probationEndDate: data.probationEndDate ? new Date(data.probationEndDate) : null,
-      jobTitle: data.jobTitle ?? null,
-      department: data.department ?? null,
-      salary: data.salary ?? null,
-      currency: data.currency,
-      payFrequency: data.payFrequency,
-      notes: data.notes ?? null,
-      isActive: data.isActive,
-      createdById: admin.id,
-    },
+
+  const contract = await prisma.$transaction(async (tx) => {
+    if (data.isActive) {
+      await tx.employeeContract.updateMany({
+        where: { userId: data.userId, isActive: true },
+        data: { isActive: false },
+      });
+    }
+    return tx.employeeContract.create({
+      data: {
+        userId: data.userId,
+        contractType: data.contractType,
+        startDate: new Date(data.startDate),
+        endDate: data.endDate ? new Date(data.endDate) : null,
+        probationEndDate: data.probationEndDate ? new Date(data.probationEndDate) : null,
+        jobTitle: data.jobTitle ?? null,
+        department: data.department ?? null,
+        salary: data.salary ?? null,
+        currency: data.currency,
+        payFrequency: data.payFrequency,
+        notes: data.notes ?? null,
+        isActive: data.isActive,
+        createdById: admin.id,
+      },
+    });
   });
+
   logActivity(admin.id, "create_contract", "hr", `Created contract for user ${data.userId}`).catch(() => null);
   return NextResponse.json({ contract }, { status: 201 });
 }
@@ -81,15 +91,25 @@ export async function PATCH(req: Request) {
   if (!body.success) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
 
   const { id, ...rest } = body.data;
-  const contract = await prisma.employeeContract.update({
-    where: { id },
-    data: {
-      ...rest,
-      startDate: rest.startDate ? new Date(rest.startDate) : undefined,
-      endDate: rest.endDate ? new Date(rest.endDate) : rest.endDate,
-      probationEndDate: rest.probationEndDate ? new Date(rest.probationEndDate) : rest.probationEndDate,
-    },
+
+  const contract = await prisma.$transaction(async (tx) => {
+    if (rest.isActive && rest.userId) {
+      await tx.employeeContract.updateMany({
+        where: { userId: rest.userId, isActive: true, id: { not: id } },
+        data: { isActive: false },
+      });
+    }
+    return tx.employeeContract.update({
+      where: { id },
+      data: {
+        ...rest,
+        startDate: rest.startDate ? new Date(rest.startDate) : undefined,
+        endDate: rest.endDate ? new Date(rest.endDate) : rest.endDate === undefined ? undefined : null,
+        probationEndDate: rest.probationEndDate ? new Date(rest.probationEndDate) : rest.probationEndDate === undefined ? undefined : null,
+      },
+    });
   });
+
   logActivity(admin.id, "update_contract", "hr", `Updated contract ${id}`).catch(() => null);
   return NextResponse.json({ contract });
 }
