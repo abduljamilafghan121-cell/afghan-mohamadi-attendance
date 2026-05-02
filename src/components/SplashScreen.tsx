@@ -3,7 +3,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 
 const SPLASH_KEY = "attendix_splash_shown";
-const DISPLAY_MS = 7000;
+const DISPLAY_MS = 4000;
 const FADE_MS = 600;
 
 export function SplashScreen() {
