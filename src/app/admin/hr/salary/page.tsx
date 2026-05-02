@@ -18,6 +18,7 @@ type SalaryRecord = {
   user: { id: string; name: string; email: string | null; department: string | null };
 };
 type UserOption = { id: string; name: string; email: string | null; department: string | null };
+type OrgInfo = { title: string; logoUrl: string | null };
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
@@ -56,11 +57,19 @@ export default function SalaryPage() {
 
   const emptyForm = { userId: "", month: now.getMonth() + 1, year: now.getFullYear(), baseSalary: "", allowances: "0", deductions: "0", currency: "AFN", payFrequency: "monthly", notes: "", paidAt: "" };
   const [form, setForm] = useState({ ...emptyForm });
+  const [org, setOrg] = useState<OrgInfo | null>(null);
 
   useEffect(() => {
     if (!token) router.push("/login");
     if (jwtUser && jwtUser.role !== "admin") router.push("/employee");
   }, [token, jwtUser, router]);
+
+  useEffect(() => {
+    fetch("/api/org")
+      .then((r) => r.json())
+      .then((d) => { if (d.org) setOrg(d.org); })
+      .catch(() => {});
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -149,11 +158,23 @@ export default function SalaryPage() {
     downloadTextFile(`salary_${filterYear}.csv`, [header, ...rows].join("\n"), "text/csv");
   };
 
-  const slipStyle = `<style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:40px;max-width:620px;margin:0 auto;color:#18181b}.header{border-bottom:3px solid #18181b;padding-bottom:16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end}.header h1{font-size:24px;font-weight:800;margin:0}.header p{font-size:12px;color:#71717a;margin:4px 0 0}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;font-size:13px}.meta-item label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#71717a;margin-bottom:2px}.meta-item span{font-weight:600}.breakdown{width:100%;border-collapse:collapse;margin-bottom:20px}.breakdown th{background:#f4f4f5;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em}.breakdown td{padding:10px 12px;border-bottom:1px solid #f4f4f5;font-size:13px}.breakdown .amount{text-align:right;font-weight:600}.total-row td{font-size:15px;font-weight:700;border-top:2px solid #18181b;border-bottom:none;padding-top:12px}.status{display:inline-block;padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:600}.paid{background:#dcfce7;color:#16a34a}.pending{background:#fef9c3;color:#ca8a04}.notes{margin-top:16px;padding:12px;background:#f4f4f5;border-radius:8px;font-size:12px;color:#3f3f46}@media print{body{padding:16px}}</style>`;
+  const slipStyle = `<style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:40px;max-width:660px;margin:0 auto;color:#18181b}.org-header{display:flex;align-items:center;gap:16px;padding-bottom:16px;margin-bottom:8px;border-bottom:3px solid #18181b}.org-logo{height:56px;width:56px;object-fit:contain;border-radius:8px;border:1px solid #e4e4e7}.org-name{font-size:20px;font-weight:800;color:#18181b;margin:0}.org-sub{font-size:11px;color:#71717a;margin:3px 0 0}.slip-meta-row{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px;padding-top:10px}.slip-title{font-size:22px;font-weight:800;letter-spacing:.04em;color:#18181b}.slip-date{font-size:12px;color:#71717a;text-align:right}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;font-size:13px}.meta-item label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#71717a;margin-bottom:2px}.meta-item span{font-weight:600}.breakdown{width:100%;border-collapse:collapse;margin-bottom:20px}.breakdown th{background:#f4f4f5;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em}.breakdown td{padding:10px 12px;border-bottom:1px solid #f4f4f5;font-size:13px}.breakdown .amount{text-align:right;font-weight:600}.total-row td{font-size:15px;font-weight:700;border-top:2px solid #18181b;border-bottom:none;padding-top:12px}.status{display:inline-block;padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:600}.paid{background:#dcfce7;color:#16a34a}.pending{background:#fef9c3;color:#ca8a04}.notes{margin-top:16px;padding:12px;background:#f4f4f5;border-radius:8px;font-size:12px;color:#3f3f46}.footer{margin-top:32px;padding-top:12px;border-top:1px solid #e4e4e7;font-size:10px;color:#a1a1aa;text-align:center}@media print{body{padding:16px}}</style>`;
+
+  const buildOrgHeader = () => {
+    if (!org) return "";
+    const logoHtml = org.logoUrl
+      ? `<img class="org-logo" src="${org.logoUrl}" alt="${org.title}" />`
+      : "";
+    return `<div class="org-header">${logoHtml}<div><div class="org-name">${org.title}</div><div class="org-sub">Official Payslip</div></div></div>`;
+  };
 
   const printSlip = (r: SalaryRecord) => {
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Payslip — ${r.user.name}</title>${slipStyle}</head><body>
-      <div class="header"><div><h1>PAYSLIP</h1><p>${MONTHS[r.month - 1]} ${r.year}</p></div><div style="text-align:right"><p style="font-size:12px;color:#71717a">Generated ${new Date().toLocaleDateString()}</p></div></div>
+      ${buildOrgHeader()}
+      <div class="slip-meta-row">
+        <div class="slip-title">PAYSLIP</div>
+        <div class="slip-date"><div style="font-size:14px;font-weight:700">${MONTHS[r.month - 1]} ${r.year}</div><div>Generated ${new Date().toLocaleDateString()}</div></div>
+      </div>
       <div class="meta">
         <div class="meta-item"><label>Employee</label><span>${r.user.name}</span></div>
         <div class="meta-item"><label>Department</label><span>${r.user.department ?? "—"}</span></div>
@@ -171,19 +192,25 @@ export default function SalaryPage() {
       </table>
       <div>Payment Status: <span class="status ${r.paidAt ? "paid" : "pending"}">${r.paidAt ? `Paid on ${r.paidAt.slice(0, 10)}` : "Pending"}</span></div>
       ${r.notes ? `<div class="notes"><strong>Notes:</strong> ${r.notes}</div>` : ""}
+      <div class="footer">${org?.title ?? ""} &nbsp;·&nbsp; This is a computer-generated payslip.</div>
     </body></html>`;
     exportHtmlReport(`payslip_${r.user.name.replace(/\s+/g, "_")}_${MONTHS[r.month - 1]}_${r.year}`, html);
   };
 
   const exportPayrollPdf = () => {
-    const pdfStyle = `<style>body{font-family:Arial,sans-serif;padding:24px;color:#18181b}h1{font-size:18px;font-weight:700;margin:0 0 4px}p.sub{font-size:12px;color:#71717a;margin:0 0 16px}table{width:100%;border-collapse:collapse}th{background:#f4f4f5;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e4e4e7}td{padding:8px 12px;font-size:12px;border-bottom:1px solid #f4f4f5}.right{text-align:right}.paid{color:#16a34a;font-weight:600}.pending{color:#ca8a04;font-weight:600}.total-row td{font-weight:700;border-top:2px solid #18181b;border-bottom:none}@media print{body{padding:0}}</style>`;
+    const pdfStyle = `<style>body{font-family:Arial,sans-serif;padding:24px;color:#18181b}.org-header{display:flex;align-items:center;gap:12px;padding-bottom:12px;margin-bottom:12px;border-bottom:3px solid #18181b}.org-logo{height:44px;width:44px;object-fit:contain;border-radius:6px;border:1px solid #e4e4e7}.org-name{font-size:17px;font-weight:800;margin:0}.org-sub{font-size:11px;color:#71717a;margin:2px 0 0}h1{font-size:16px;font-weight:700;margin:0 0 4px}p.sub{font-size:12px;color:#71717a;margin:0 0 16px}table{width:100%;border-collapse:collapse}th{background:#f4f4f5;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e4e4e7}td{padding:8px 12px;font-size:12px;border-bottom:1px solid #f4f4f5}.right{text-align:right}.paid{color:#16a34a;font-weight:600}.pending{color:#ca8a04;font-weight:600}.total-row td{font-weight:700;border-top:2px solid #18181b;border-bottom:none}.footer{margin-top:24px;font-size:10px;color:#a1a1aa;text-align:center}@media print{body{padding:0}}</style>`;
+    const orgLogoHtml = org?.logoUrl ? `<img class="org-logo" src="${org.logoUrl}" alt="${org.title}" />` : "";
+    const orgHeaderHtml = org ? `<div class="org-header">${orgLogoHtml}<div><div class="org-name">${org.title}</div><div class="org-sub">Payroll Report</div></div></div>` : "";
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Payroll ${filterYear}</title>${pdfStyle}</head><body>
+      ${orgHeaderHtml}
       <h1>Payroll Report — ${filterYear}</h1><p class="sub">Generated ${new Date().toLocaleString()} · ${filtered.length} records</p>
       <table><thead><tr><th>Employee</th><th>Dept</th><th>Period</th><th class="right">Base</th><th class="right">Allowances</th><th class="right">Deductions</th><th class="right">Net Salary</th><th>Status</th></tr></thead>
       <tbody>
         ${filtered.map((r) => `<tr><td>${r.user.name}</td><td>${r.user.department ?? ""}</td><td>${MONTHS[r.month - 1]} ${r.year}</td><td class="right">${r.baseSalary.toLocaleString()}</td><td class="right">${r.allowances.toLocaleString()}</td><td class="right">${r.deductions.toLocaleString()}</td><td class="right">${r.currency} ${r.netSalary.toLocaleString()}</td><td class="${r.paidAt ? "paid" : "pending"}">${r.paidAt ? "Paid" : "Pending"}</td></tr>`).join("")}
         <tr class="total-row"><td colspan="6">Total</td><td class="right">${filtered.reduce((s, r) => s + r.netSalary, 0).toLocaleString()}</td><td></td></tr>
-      </tbody></table></body></html>`;
+      </tbody></table>
+      <div class="footer">${org?.title ?? ""} &nbsp;·&nbsp; This is a computer-generated report.</div>
+    </body></html>`;
     exportHtmlReport(`payroll_${filterYear}`, html);
   };
 
