@@ -6,8 +6,11 @@ const SPLASH_KEY = "attendix_splash_shown";
 const DISPLAY_MS = 7000;
 const FADE_MS = 700;
 
-// Module-level flag so React Strict Mode double-invoke doesn't cancel timers
-let _splashDone = false;
+// Persists through Strict Mode double-invoke — initialized once, never reset
+const splashControl = {
+  initialized: false,
+  shouldShow: false,
+};
 
 function WaveDots({ corner }: { corner: "tr" | "bl" }) {
   const cols = 9;
@@ -24,6 +27,7 @@ function WaveDots({ corner }: { corner: "tr" | "bl" }) {
       const norm = dist / maxDist;
       if (norm > 0.82) continue;
 
+      // Fully deterministic — no Math.random() to avoid hydration mismatch
       const delay = ((r * 0.09 + c * 0.07) % 1.5).toFixed(2);
       const size = norm < 0.3 ? 3.5 : norm < 0.6 ? 2.5 : 1.8;
       const baseOpacity = norm < 0.25 ? 0.8 : norm < 0.55 ? 0.5 : 0.22;
@@ -46,9 +50,7 @@ function WaveDots({ corner }: { corner: "tr" | "bl" }) {
   const w = cols * gap;
   const h = rows * gap;
   const pos: React.CSSProperties =
-    corner === "tr"
-      ? { top: 0, right: 0 }
-      : { bottom: 0, left: 0 };
+    corner === "tr" ? { top: 0, right: 0 } : { bottom: 0, left: 0 };
 
   return (
     <svg
@@ -62,27 +64,35 @@ function WaveDots({ corner }: { corner: "tr" | "bl" }) {
 }
 
 export function SplashScreen() {
-  // Start immediately visible — prevents the white-page flash before splash appears
-  const [visible, setVisible] = useState(true);
-  const [fading, setFading] = useState(false);
+  // Start opacity:0 — the dark html/body background (set in layout <head>) covers
+  // the white gap until we decide whether to show the splash or not.
+  const [opacity, setOpacity] = useState(0);
+  const [done, setDone] = useState(false);
   const [entered, setEntered] = useState(false);
 
   useEffect(() => {
-    // If splash already shown this session (or Strict-Mode second invoke), hide instantly
-    if (_splashDone || sessionStorage.getItem(SPLASH_KEY)) {
-      setVisible(false);
+    // Determine once (first invoke) whether we should show — persists through
+    // Strict Mode's cleanup+remount cycle via the module-level object.
+    if (!splashControl.initialized) {
+      splashControl.initialized = true;
+      splashControl.shouldShow = !sessionStorage.getItem(SPLASH_KEY);
+      if (splashControl.shouldShow) {
+        sessionStorage.setItem(SPLASH_KEY, "1");
+      }
+    }
+
+    // Already shown this session — remove from DOM immediately
+    if (!splashControl.shouldShow) {
+      setDone(true);
       return;
     }
-    _splashDone = true;
-    sessionStorage.setItem(SPLASH_KEY, "1");
 
-    // Trigger enter animations on next paint
+    // Show the splash (both Strict Mode invoke 1 and invoke 2 reach here;
+    // invoke 1's timers get cancelled by cleanup, invoke 2's run to completion)
+    setOpacity(1);
     const raf = requestAnimationFrame(() => setEntered(true));
-
-    // Begin fade-out
-    const t1 = setTimeout(() => setFading(true), DISPLAY_MS);
-    // Remove from DOM
-    const t2 = setTimeout(() => setVisible(false), DISPLAY_MS + FADE_MS);
+    const t1 = setTimeout(() => setOpacity(0), DISPLAY_MS);
+    const t2 = setTimeout(() => setDone(true), DISPLAY_MS + FADE_MS);
 
     return () => {
       cancelAnimationFrame(raf);
@@ -91,7 +101,7 @@ export function SplashScreen() {
     };
   }, []);
 
-  if (!visible) return null;
+  if (done) return null;
 
   return (
     <div
@@ -104,40 +114,21 @@ export function SplashScreen() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(170deg, #060d2e 0%, #091535 40%, #0b1e4a 70%, #0d2260 100%)",
+        background: "linear-gradient(170deg,#060d2e 0%,#091535 40%,#0b1e4a 70%,#0d2260 100%)",
         transition: `opacity ${FADE_MS}ms cubic-bezier(0.4,0,0.2,1)`,
-        opacity: fading ? 0 : 1,
+        opacity,
         pointerEvents: "all",
         userSelect: "none",
         overflow: "hidden",
       }}
     >
       <style>{`
-        @keyframes dp1 {
-          0%,100%{opacity:.15;transform:scale(.85)}
-          50%{opacity:1;transform:scale(1.15)}
-        }
-        @keyframes dp2 {
-          0%,100%{opacity:.25;transform:scale(1)}
-          50%{opacity:.8;transform:scale(1.2)}
-        }
-        @keyframes dp3 {
-          0%,100%{opacity:.1;transform:scale(.9)}
-          50%{opacity:.6;transform:scale(1.1)}
-        }
-        @keyframes splashBar {
-          0%{width:0%}
-          90%{width:100%}
-          100%{width:100%}
-        }
-        @keyframes glowPulse {
-          0%,100%{opacity:.25;transform:scale(1)}
-          50%{opacity:.45;transform:scale(1.08)}
-        }
-        @keyframes logoFloat {
-          0%,100%{transform:translateY(0px)}
-          50%{transform:translateY(-6px)}
-        }
+        @keyframes dp1{0%,100%{opacity:.15;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
+        @keyframes dp2{0%,100%{opacity:.25;transform:scale(1)}50%{opacity:.8;transform:scale(1.2)}}
+        @keyframes dp3{0%,100%{opacity:.1;transform:scale(.9)}50%{opacity:.6;transform:scale(1.1)}}
+        @keyframes splashBar{0%{width:0%}90%{width:100%}100%{width:100%}}
+        @keyframes glowPulse{0%,100%{opacity:.25;transform:scale(1)}50%{opacity:.45;transform:scale(1.08)}}
+        @keyframes logoFloat{0%,100%{transform:translateY(0px)}50%{transform:translateY(-6px)}}
       `}</style>
 
       <WaveDots corner="tr" />
@@ -145,10 +136,8 @@ export function SplashScreen() {
 
       {/* Glow behind logo */}
       <div style={{
-        position: "absolute",
-        width: 280, height: 280,
-        borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(37,99,235,0.35) 0%, transparent 70%)",
+        position: "absolute", width: 280, height: 280, borderRadius: "50%",
+        background: "radial-gradient(circle,rgba(37,99,235,0.35) 0%,transparent 70%)",
         animation: "glowPulse 3s ease-in-out infinite",
         pointerEvents: "none",
       }} />
@@ -160,17 +149,14 @@ export function SplashScreen() {
         opacity: entered ? 1 : 0,
         marginBottom: 30,
         animation: entered ? "logoFloat 4s ease-in-out 1s infinite" : "none",
-        position: "relative",
-        zIndex: 1,
+        position: "relative", zIndex: 1,
       }}>
         <img
           src="/attendix-logo.png"
           alt="Attendix"
           style={{
-            width: 108, height: 108,
-            borderRadius: 26,
-            boxShadow: "0 0 0 1px rgba(255,255,255,0.12), 0 8px 40px rgba(37,99,235,0.6), 0 20px 60px rgba(0,0,0,0.5)",
-            display: "block",
+            width: 108, height: 108, borderRadius: 26, display: "block",
+            boxShadow: "0 0 0 1px rgba(255,255,255,0.12),0 8px 40px rgba(37,99,235,0.6),0 20px 60px rgba(0,0,0,0.5)",
           }}
         />
       </div>
@@ -180,16 +166,12 @@ export function SplashScreen() {
         transition: "opacity 0.7s ease 0.3s, transform 0.7s ease 0.3s",
         opacity: entered ? 1 : 0,
         transform: entered ? "translateY(0)" : "translateY(14px)",
-        textAlign: "center",
-        marginBottom: 10,
-        position: "relative",
-        zIndex: 1,
+        textAlign: "center", marginBottom: 10, position: "relative", zIndex: 1,
       }}>
         <div style={{
-          fontSize: "2.1rem", fontWeight: 800,
-          color: "#ffffff", letterSpacing: "0.14em",
+          fontSize: "2.1rem", fontWeight: 800, color: "#ffffff", letterSpacing: "0.14em",
           fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
-          textShadow: "0 0 40px rgba(100,160,255,0.5), 0 2px 8px rgba(0,0,0,0.4)",
+          textShadow: "0 0 40px rgba(100,160,255,0.5),0 2px 8px rgba(0,0,0,0.4)",
         }}>
           ATTENDIX
         </div>
@@ -200,14 +182,10 @@ export function SplashScreen() {
         transition: "opacity 0.7s ease 0.5s, transform 0.7s ease 0.5s",
         opacity: entered ? 1 : 0,
         transform: entered ? "translateY(0)" : "translateY(10px)",
-        marginBottom: 64,
-        position: "relative",
-        zIndex: 1,
+        marginBottom: 64, position: "relative", zIndex: 1,
       }}>
         <div style={{
-          fontSize: "0.72rem",
-          color: "rgba(100,160,255,0.85)",
-          letterSpacing: "0.22em",
+          fontSize: "0.72rem", color: "rgba(100,160,255,0.85)", letterSpacing: "0.22em",
           textTransform: "uppercase",
           fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
           textShadow: "0 0 20px rgba(100,160,255,0.4)",
@@ -220,16 +198,9 @@ export function SplashScreen() {
       <div style={{
         transition: "opacity 0.6s ease 0.7s",
         opacity: entered ? 1 : 0,
-        width: 120,
-        position: "relative",
-        zIndex: 1,
+        width: 120, position: "relative", zIndex: 1,
       }}>
-        <div style={{
-          height: 3,
-          background: "rgba(255,255,255,0.1)",
-          borderRadius: 99,
-          overflow: "hidden",
-        }}>
+        <div style={{ height: 3, background: "rgba(255,255,255,0.1)", borderRadius: 99, overflow: "hidden" }}>
           <div style={{
             height: "100%",
             background: "linear-gradient(90deg,#3b82f6,#60a5fa,#93c5fd)",
