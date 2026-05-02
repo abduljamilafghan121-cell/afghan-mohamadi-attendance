@@ -124,7 +124,7 @@ export async function POST(req: Request) {
   logActivity(
     authUser.id,
     `leave_${parsed.data.status}`,
-    "manager",
+    "leave",
     `Leave ${parsed.data.status} for user ${existing.userId} · ${leaveType} · ${existing.startDate.toISOString().slice(0, 10)} → ${existing.endDate.toISOString().slice(0, 10)}`,
   ).catch(() => null);
 

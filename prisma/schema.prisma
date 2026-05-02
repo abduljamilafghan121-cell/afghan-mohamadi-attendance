@@ -139,6 +139,7 @@ model User {
   contracts            EmployeeContract[]       @relation("UserContracts")
   emergencyContacts    EmergencyContact[]       @relation("UserEmergencyContacts")
   salaryRecords        SalaryRecord[]           @relation("UserSalaryRecords")
+  salaryRecordsCreated SalaryRecord[]           @relation("SalaryCreatedBy")
   performanceReviews   PerformanceReview[]      @relation("UserPerformanceReviews")
   reviewsConducted     PerformanceReview[]      @relation("ReviewerReviews")
   trainingRecords      TrainingRecord[]         @relation("UserTrainingRecords")
@@ -803,6 +804,7 @@ model SalaryRecord {
   notes        String?
   paidAt       DateTime?
   createdById  String?
+  createdBy    User?        @relation("SalaryCreatedBy", fields: [createdById], references: [id])
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 

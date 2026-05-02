@@ -5,7 +5,7 @@ import { getBearerToken, verifyAccessToken } from "../../../../lib/auth";
 import { logActivity } from "../../../../lib/activityLog";
 import { startOfDayInTimeZone } from "../../../../lib/qr";
 import { validateQrForAttendance } from "../../../../lib/qrValidate";
-import { notifyAdmins } from "../../../../lib/notify";
+import { notifyAdmins, notifyUser } from "../../../../lib/notify";
 import { isWithinRadius } from "../../../../lib/geo";
 import { isOffDay, calcLateMinutes, startOfDayUtcFromDate } from "../../../../lib/schedule";
 

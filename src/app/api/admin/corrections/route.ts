@@ -69,7 +69,7 @@ export async function POST(req: Request) {
         include: { office: true },
       },
       user: {
-        select: { id: true, name: true, officeId: true },
+        select: { id: true, name: true },
       },
     },
   });
@@ -137,10 +137,7 @@ export async function POST(req: Request) {
         ...auditEntries.map((e) => prisma.attendanceAuditLog.create({ data: e }))
       );
     } else {
-      const officeId = corrReq.user.officeId;
-      const office = officeId
-        ? await prisma.office.findUnique({ where: { id: officeId } })
-        : await prisma.office.findFirst({ where: { isActive: true } });
+      const office = await prisma.office.findFirst({ where: { isActive: true } });
 
       if (office) {
         const newSessionData: Record<string, any> = {
@@ -167,7 +164,7 @@ export async function POST(req: Request) {
           newSessionData.isEarlyDeparture = isEarly;
         }
 
-        ops.push(prisma.attendanceSession.create({ data: newSessionData }));
+        ops.push(prisma.attendanceSession.create({ data: newSessionData as any }));
       }
     }
   }
