@@ -37,10 +37,17 @@ The application is built on Next.js 14 using the App Router, with REST API route
 - **Sales Module**:
     - Salesman-facing pages for logging visits, creating orders, and recording collections.
     - Comprehensive customer history view.
-    - Admin-facing dashboard, reports (with CSV export), and product CRUD.
+    - Admin-facing dashboard, reports (with CSV + PDF export), and product CRUD.
     - Order dispatch with WhatsApp notifications.
     - Per-line item price override in orders.
 - **Activity Log**: Admin-only audit trail of significant user actions across various modules.
+- **HR Module**:
+    - HR Reports page with CSV and PDF export (absent today, monthly summary, late arrivals, overtime).
+    - Payroll & Salary: full payroll PDF export + per-record payslip PDF (print dialog).
+    - Salary notifications via `notifyUser` when salary is recorded or paid (`salary_recorded` enum type).
+- **Mobile Bottom Nav**: Fixed bottom bar (md:hidden) with 4 tabs — Check In/Out, Sales, History, Profile — shown for all logged-in users.
+- **Admin Nav**: Restructured admin dropdown with SVG icons + group separators (Staff, Attendance, Sales, HR, System). Scrollable with max-height on desktop.
+- **Dashboard**: Live stat tiles now include On Outstation count; "Absent Today" tile is clickable to expand/collapse absent employee list. Holiday and weekly off-day banners shown when applicable. Absent count uses the same outstation/holiday/offday exclusion logic as HR Reports.
 
 ## External Dependencies
 - **PostgreSQL**: Primary database for all application data.

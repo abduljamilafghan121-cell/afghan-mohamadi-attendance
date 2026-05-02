@@ -8,39 +8,50 @@ import { NotificationBell } from "./NotificationBell";
 
 type Org = { title: string; logoUrl: string | null };
 
-const adminLinks = [
-  { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/offices", label: "Offices" },
-  { href: "/admin/users", label: "Users" },
-  { href: "/admin/qr", label: "Daily QR" },
-  { href: "/admin/qr-history", label: "QR History" },
-  { href: "/admin/attendance", label: "Attendance" },
-  { href: "/admin/hours", label: "Hours" },
-  { href: "/admin/leaves", label: "Leaves" },
-  { href: "/admin/leave-balance", label: "Leave Balance" },
-  { href: "/admin/corrections", label: "Corrections" },
-  { href: "/admin/holidays", label: "Holidays" },
-  { href: "/admin/workday-overrides", label: "Overrides" },
-  { href: "/admin/outstation", label: "Outstation" },
-  { href: "/admin/sales/dashboard", label: "Sales Dashboard" },
-  { href: "/admin/sales/orders", label: "Order Approvals" },
-  { href: "/admin/sales/reports", label: "Sales Reports" },
-  { href: "/admin/sales/products", label: "Products" },
-  { href: "/admin/sales/regions", label: "Regions" },
-  { href: "/admin/sales/customers", label: "Customer Regions" },
-  { href: "/admin/sales/weekly-plans", label: "Weekly Plans" },
-  { href: "/admin/sales/plans", label: "Daily Plans" },
-  { href: "/admin/hr/reports", label: "HR Reports" },
-  { href: "/admin/hr/directory", label: "Employee Directory" },
-  { href: "/admin/hr/contracts", label: "Contracts" },
-  { href: "/admin/hr/salary", label: "Payroll & Salary" },
-  { href: "/admin/hr/performance", label: "Performance Reviews" },
-  { href: "/admin/hr/training", label: "Training & Dev" },
-  { href: "/admin/hr/disciplinary", label: "Disciplinary" },
-  { href: "/admin/activity-log", label: "Activity Log" },
-  { href: "/admin/notifications", label: "Send Announcement" },
-  { href: "/admin/org", label: "Organization" },
+type AdminItem =
+  | { kind: "link"; href: string; label: string; icon: React.ReactNode }
+  | { kind: "sep"; label: string };
+
+const adminItems: AdminItem[] = [
+  { kind: "link", href: "/admin/dashboard", label: "Dashboard", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> },
+  { kind: "sep", label: "Staff" },
+  { kind: "link", href: "/admin/users", label: "Users", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+  { kind: "link", href: "/admin/offices", label: "Offices", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> },
+  { kind: "link", href: "/admin/org", label: "Organization", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg> },
+  { kind: "sep", label: "Attendance" },
+  { kind: "link", href: "/admin/qr", label: "Daily QR", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="5" height="5"/><rect x="16" y="3" width="5" height="5"/><rect x="3" y="16" width="5" height="5"/><path d="M21 16h-3a2 2 0 0 0-2 2v3M16 21h5M21 16v5"/></svg> },
+  { kind: "link", href: "/admin/qr-history", label: "QR History", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> },
+  { kind: "link", href: "/admin/attendance", label: "Attendance Log", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
+  { kind: "link", href: "/admin/hours", label: "Work Hours", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> },
+  { kind: "link", href: "/admin/leaves", label: "Leaves", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14" strokeWidth="3"/></svg> },
+  { kind: "link", href: "/admin/leave-balance", label: "Leave Balance", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
+  { kind: "link", href: "/admin/corrections", label: "Corrections", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
+  { kind: "link", href: "/admin/holidays", label: "Holidays", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> },
+  { kind: "link", href: "/admin/workday-overrides", label: "Work Overrides", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg> },
+  { kind: "link", href: "/admin/outstation", label: "Outstation", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg> },
+  { kind: "sep", label: "Sales" },
+  { kind: "link", href: "/admin/sales/dashboard", label: "Sales Dashboard", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
+  { kind: "link", href: "/admin/sales/orders", label: "Order Approvals", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg> },
+  { kind: "link", href: "/admin/sales/reports", label: "Sales Reports", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
+  { kind: "link", href: "/admin/sales/products", label: "Products", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> },
+  { kind: "link", href: "/admin/sales/regions", label: "Regions", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> },
+  { kind: "link", href: "/admin/sales/customers", label: "Customer Regions", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> },
+  { kind: "link", href: "/admin/sales/weekly-plans", label: "Weekly Plans", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
+  { kind: "link", href: "/admin/sales/plans", label: "Daily Plans", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6" strokeWidth="3"/><line x1="3" y1="12" x2="3.01" y2="12" strokeWidth="3"/><line x1="3" y1="18" x2="3.01" y2="18" strokeWidth="3"/></svg> },
+  { kind: "sep", label: "HR" },
+  { kind: "link", href: "/admin/hr/reports", label: "HR Reports", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> },
+  { kind: "link", href: "/admin/hr/directory", label: "Employee Directory", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="23 21 23 19 20 17"/><polyline points="16 17 20 17 20 21"/></svg> },
+  { kind: "link", href: "/admin/hr/contracts", label: "Contracts", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> },
+  { kind: "link", href: "/admin/hr/salary", label: "Payroll & Salary", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> },
+  { kind: "link", href: "/admin/hr/performance", label: "Performance", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> },
+  { kind: "link", href: "/admin/hr/training", label: "Training & Dev", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> },
+  { kind: "link", href: "/admin/hr/disciplinary", label: "Disciplinary", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17" strokeWidth="3"/></svg> },
+  { kind: "sep", label: "System" },
+  { kind: "link", href: "/admin/activity-log", label: "Activity Log", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
+  { kind: "link", href: "/admin/notifications", label: "Send Announcement", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> },
 ];
+
+const adminLinks = adminItems.filter((i): i is Extract<AdminItem, { kind: "link" }> => i.kind === "link");
 
 function NavLink({
   href,
@@ -250,21 +261,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
 
                 {adminOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-56 rounded-xl border border-zinc-200 bg-white py-1.5 shadow-lg z-30">
-                    {adminLinks.map((l) => {
-                      const c = adminLinkPendingCount(l.href);
+                  <div className="absolute right-0 top-full mt-1 w-60 rounded-xl border border-zinc-200 bg-white py-1.5 shadow-lg z-30 max-h-[80vh] overflow-y-auto">
+                    {adminItems.map((item, i) => {
+                      if (item.kind === "sep") {
+                        return (
+                          <div key={`sep-${i}`} className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                            {item.label}
+                          </div>
+                        );
+                      }
+                      const c = adminLinkPendingCount(item.href);
                       return (
                         <Link
-                          key={l.href}
-                          href={l.href}
+                          key={item.href}
+                          href={item.href}
                           onClick={() => setAdminOpen(false)}
                           className={`
-                            flex items-center justify-between gap-2 px-4 py-2 text-sm transition-colors duration-100
-                            ${pathname === l.href ? "bg-zinc-100 font-medium text-zinc-900" : "text-zinc-700 hover:bg-zinc-50"}
+                            flex items-center gap-2.5 px-4 py-2 text-sm transition-colors duration-100
+                            ${pathname === item.href ? "bg-zinc-100 font-medium text-zinc-900" : "text-zinc-700 hover:bg-zinc-50"}
                             active:bg-zinc-200
                           `}
                         >
-                          <span>{l.label}</span>
+                          <span className="shrink-0 text-zinc-400">{item.icon}</span>
+                          <span className="flex-1">{item.label}</span>
                           {c > 0 && (
                             <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1.5 text-[11px] font-semibold leading-5 text-white">
                               {c > 99 ? "99+" : c}
@@ -368,15 +387,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
             {user?.role === "admin" && (
               <>
-                <div className="mt-2 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-                  Admin
-                </div>
-                {adminLinks.map((l) => {
-                  const c = adminLinkPendingCount(l.href);
+                {adminItems.map((item, i) => {
+                  if (item.kind === "sep") {
+                    return (
+                      <div key={`msep-${i}`} className="mt-2 mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                        {item.label}
+                      </div>
+                    );
+                  }
+                  const c = adminLinkPendingCount(item.href);
                   return (
-                    <MobileNavLink key={l.href} href={l.href} active={pathname === l.href} onClick={() => setMenuOpen(false)}>
-                      <span className="inline-flex w-full items-center justify-between gap-2">
-                        <span>{l.label}</span>
+                    <MobileNavLink key={item.href} href={item.href} active={pathname === item.href} onClick={() => setMenuOpen(false)}>
+                      <span className="inline-flex w-full items-center gap-2.5">
+                        <span className="shrink-0 text-zinc-400">{item.icon}</span>
+                        <span className="flex-1">{item.label}</span>
                         {c > 0 && (
                           <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1.5 text-[11px] font-semibold leading-5 text-white">
                             {c > 99 ? "99+" : c}
@@ -404,11 +428,56 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:py-8">{children}</main>
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-24 sm:py-8 md:pb-8">{children}</main>
 
-      <footer className="mx-auto w-full max-w-6xl px-4 pb-8 text-xs text-zinc-500">
+      <footer className="mx-auto w-full max-w-6xl px-4 pb-8 text-xs text-zinc-500 hidden md:block">
         {user ? `Signed in as ${user.role}` : ""}
       </footer>
+
+      {/* Mobile bottom navigation */}
+      {user && (
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-zinc-200 bg-white/95 backdrop-blur-sm flex h-16 items-stretch safe-area-inset-bottom">
+          {[
+            {
+              href: "/employee",
+              label: "Check In",
+              active: pathname === "/employee",
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+            },
+            {
+              href: "/sales",
+              label: "Sales",
+              active: pathname.startsWith("/sales"),
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>,
+            },
+            {
+              href: "/employee/history",
+              label: "History",
+              active: pathname.startsWith("/employee/history"),
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+            },
+            {
+              href: "/profile",
+              label: "Profile",
+              active: pathname === "/profile",
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+            },
+          ].map((tab) => (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={`flex flex-1 flex-col items-center justify-center gap-0.5 transition-colors ${
+                tab.active ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-600"
+              }`}
+            >
+              <div className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${tab.active ? "bg-zinc-100" : ""}`}>
+                {tab.icon}
+              </div>
+              <span className="text-[10px] font-medium">{tab.label}</span>
+            </Link>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }

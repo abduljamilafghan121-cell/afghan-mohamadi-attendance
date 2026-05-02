@@ -8,7 +8,7 @@ import { Button } from "../../../../components/ui/Button";
 import { Input } from "../../../../components/ui/Input";
 import { apiFetch } from "../../../../lib/clientApi";
 import { getToken, parseJwt } from "../../../../lib/clientAuth";
-import { downloadTextFile } from "../../../../lib/exportUtils";
+import { downloadTextFile, exportHtmlReport } from "../../../../lib/exportUtils";
 
 type SalaryRecord = {
   id: string; userId: string; month: number; year: number;
@@ -149,6 +149,44 @@ export default function SalaryPage() {
     downloadTextFile(`salary_${filterYear}.csv`, [header, ...rows].join("\n"), "text/csv");
   };
 
+  const slipStyle = `<style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:40px;max-width:620px;margin:0 auto;color:#18181b}.header{border-bottom:3px solid #18181b;padding-bottom:16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end}.header h1{font-size:24px;font-weight:800;margin:0}.header p{font-size:12px;color:#71717a;margin:4px 0 0}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;font-size:13px}.meta-item label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#71717a;margin-bottom:2px}.meta-item span{font-weight:600}.breakdown{width:100%;border-collapse:collapse;margin-bottom:20px}.breakdown th{background:#f4f4f5;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em}.breakdown td{padding:10px 12px;border-bottom:1px solid #f4f4f5;font-size:13px}.breakdown .amount{text-align:right;font-weight:600}.total-row td{font-size:15px;font-weight:700;border-top:2px solid #18181b;border-bottom:none;padding-top:12px}.status{display:inline-block;padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:600}.paid{background:#dcfce7;color:#16a34a}.pending{background:#fef9c3;color:#ca8a04}.notes{margin-top:16px;padding:12px;background:#f4f4f5;border-radius:8px;font-size:12px;color:#3f3f46}@media print{body{padding:16px}}</style>`;
+
+  const printSlip = (r: SalaryRecord) => {
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Payslip — ${r.user.name}</title>${slipStyle}</head><body>
+      <div class="header"><div><h1>PAYSLIP</h1><p>${MONTHS[r.month - 1]} ${r.year}</p></div><div style="text-align:right"><p style="font-size:12px;color:#71717a">Generated ${new Date().toLocaleDateString()}</p></div></div>
+      <div class="meta">
+        <div class="meta-item"><label>Employee</label><span>${r.user.name}</span></div>
+        <div class="meta-item"><label>Department</label><span>${r.user.department ?? "—"}</span></div>
+        <div class="meta-item"><label>Pay Period</label><span>${MONTHS[r.month - 1]} ${r.year}</span></div>
+        <div class="meta-item"><label>Frequency</label><span style="text-transform:capitalize">${r.payFrequency}</span></div>
+      </div>
+      <table class="breakdown">
+        <thead><tr><th>Component</th><th class="amount">Amount (${r.currency})</th></tr></thead>
+        <tbody>
+          <tr><td>Base Salary</td><td class="amount">${r.baseSalary.toLocaleString()}</td></tr>
+          <tr><td style="color:#16a34a">+ Allowances</td><td class="amount" style="color:#16a34a">+ ${r.allowances.toLocaleString()}</td></tr>
+          <tr><td style="color:#dc2626">- Deductions</td><td class="amount" style="color:#dc2626">- ${r.deductions.toLocaleString()}</td></tr>
+          <tr class="total-row"><td>Net Salary</td><td class="amount">${r.currency} ${r.netSalary.toLocaleString()}</td></tr>
+        </tbody>
+      </table>
+      <div>Payment Status: <span class="status ${r.paidAt ? "paid" : "pending"}">${r.paidAt ? `Paid on ${r.paidAt.slice(0, 10)}` : "Pending"}</span></div>
+      ${r.notes ? `<div class="notes"><strong>Notes:</strong> ${r.notes}</div>` : ""}
+    </body></html>`;
+    exportHtmlReport(`payslip_${r.user.name.replace(/\s+/g, "_")}_${MONTHS[r.month - 1]}_${r.year}`, html);
+  };
+
+  const exportPayrollPdf = () => {
+    const pdfStyle = `<style>body{font-family:Arial,sans-serif;padding:24px;color:#18181b}h1{font-size:18px;font-weight:700;margin:0 0 4px}p.sub{font-size:12px;color:#71717a;margin:0 0 16px}table{width:100%;border-collapse:collapse}th{background:#f4f4f5;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e4e4e7}td{padding:8px 12px;font-size:12px;border-bottom:1px solid #f4f4f5}.right{text-align:right}.paid{color:#16a34a;font-weight:600}.pending{color:#ca8a04;font-weight:600}.total-row td{font-weight:700;border-top:2px solid #18181b;border-bottom:none}@media print{body{padding:0}}</style>`;
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Payroll ${filterYear}</title>${pdfStyle}</head><body>
+      <h1>Payroll Report — ${filterYear}</h1><p class="sub">Generated ${new Date().toLocaleString()} · ${filtered.length} records</p>
+      <table><thead><tr><th>Employee</th><th>Dept</th><th>Period</th><th class="right">Base</th><th class="right">Allowances</th><th class="right">Deductions</th><th class="right">Net Salary</th><th>Status</th></tr></thead>
+      <tbody>
+        ${filtered.map((r) => `<tr><td>${r.user.name}</td><td>${r.user.department ?? ""}</td><td>${MONTHS[r.month - 1]} ${r.year}</td><td class="right">${r.baseSalary.toLocaleString()}</td><td class="right">${r.allowances.toLocaleString()}</td><td class="right">${r.deductions.toLocaleString()}</td><td class="right">${r.currency} ${r.netSalary.toLocaleString()}</td><td class="${r.paidAt ? "paid" : "pending"}">${r.paidAt ? "Paid" : "Pending"}</td></tr>`).join("")}
+        <tr class="total-row"><td colspan="6">Total</td><td class="right">${filtered.reduce((s, r) => s + r.netSalary, 0).toLocaleString()}</td><td></td></tr>
+      </tbody></table></body></html>`;
+    exportHtmlReport(`payroll_${filterYear}`, html);
+  };
+
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
 
   return (
@@ -160,7 +198,8 @@ export default function SalaryPage() {
             <p className="text-sm text-zinc-500">Manage monthly salary records and payslips</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={exportCsv}>Export CSV</Button>
+            <Button variant="secondary" onClick={exportCsv}>CSV</Button>
+            <Button variant="secondary" onClick={exportPayrollPdf}>PDF</Button>
             <Button onClick={openCreate}>+ Add Record</Button>
           </div>
         </div>
@@ -228,6 +267,7 @@ export default function SalaryPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-2">
+                        <button onClick={() => printSlip(r)} className="rounded-lg px-3 py-1.5 text-xs border border-zinc-200 hover:bg-zinc-100">Slip</button>
                         <button onClick={() => openEdit(r)} className="rounded-lg px-3 py-1.5 text-xs border border-zinc-200 hover:bg-zinc-100">Edit</button>
                         <button onClick={() => setDeleteTarget(r)} className="rounded-lg px-3 py-1.5 text-xs border border-red-200 text-red-600 hover:bg-red-50">Delete</button>
                       </div>

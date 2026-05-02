@@ -10,7 +10,8 @@ type NotificationType =
   | "broadcast"
   | "system"
   | "order_submitted"
-  | "order_decided";
+  | "order_decided"
+  | "salary_recorded";
 
 export interface NotifyInput {
   userId: string;

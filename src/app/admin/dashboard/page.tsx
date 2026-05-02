@@ -8,9 +8,10 @@ import { apiFetch } from "../../../lib/clientApi";
 import { getToken, parseJwt } from "../../../lib/clientAuth";
 import { Button } from "../../../components/ui/Button";
 
-type Stat = { totalActive: number; presentCount: number; absentCount: number; onLeaveCount: number; pendingLeaves: number; pendingCorrections: number };
+type Stat = { totalActive: number; presentCount: number; absentCount: number; onLeaveCount: number; onOutstationCount: number; pendingLeaves: number; pendingCorrections: number };
 type CheckedInRow = { userId: string; name: string; email: string | null; officeName: string | null; checkInAt: string | null; checkOutAt: string | null; status: string };
 type PendingLeave = { id: string; startDate: string; endDate: string; reason: string | null; createdAt: string; user: { id: string; name: string; email: string | null } };
+type AbsentUser = { id: string; name: string; email: string | null; department: string | null; jobTitle: string | null };
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -20,6 +21,10 @@ export default function AdminDashboardPage() {
   const [stats, setStats] = useState<Stat | null>(null);
   const [checkedIn, setCheckedIn] = useState<CheckedInRow[]>([]);
   const [pendingLeaves, setPendingLeaves] = useState<PendingLeave[]>([]);
+  const [absentUsers, setAbsentUsers] = useState<AbsentUser[]>([]);
+  const [holiday, setHoliday] = useState<{ name: string } | null>(null);
+  const [isOffDay, setIsOffDay] = useState(false);
+  const [showAbsent, setShowAbsent] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deciding, setDeciding] = useState<string | null>(null);
@@ -33,10 +38,13 @@ export default function AdminDashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch<{ stats: Stat; checkedIn: CheckedInRow[]; pendingLeaves: PendingLeave[] }>("/api/admin/dashboard");
+      const res = await apiFetch<{ stats: Stat; checkedIn: CheckedInRow[]; pendingLeaves: PendingLeave[]; absentUsers: AbsentUser[]; holiday: { name: string } | null; isOffDay: boolean }>("/api/admin/dashboard");
       setStats(res.stats);
       setCheckedIn(res.checkedIn);
       setPendingLeaves(res.pendingLeaves);
+      setAbsentUsers(res.absentUsers ?? []);
+      setHoliday(res.holiday ?? null);
+      setIsOffDay(res.isOffDay ?? false);
     } catch (e: any) {
       setError(e?.message ?? "Failed to load dashboard");
     } finally {
@@ -64,12 +72,13 @@ export default function AdminDashboardPage() {
   };
 
   const statCards = [
-    { label: "Active Employees", value: stats?.totalActive ?? "-", color: "bg-zinc-50 border-zinc-200", text: "text-zinc-900" },
-    { label: "Present Today", value: stats?.presentCount ?? "-", color: "bg-emerald-50 border-emerald-200", text: "text-emerald-700" },
-    { label: "Absent Today", value: stats?.absentCount ?? "-", color: "bg-red-50 border-red-200", text: "text-red-700" },
-    { label: "On Leave", value: stats?.onLeaveCount ?? "-", color: "bg-yellow-50 border-yellow-200", text: "text-yellow-700" },
-    { label: "Pending Leaves", value: stats?.pendingLeaves ?? "-", color: "bg-blue-50 border-blue-200", text: "text-blue-700" },
-    { label: "Pending Corrections", value: stats?.pendingCorrections ?? "-", color: "bg-purple-50 border-purple-200", text: "text-purple-700" },
+    { label: "Active Employees", value: stats?.totalActive ?? "-", color: "bg-zinc-50 border-zinc-200", text: "text-zinc-900", onClick: undefined as undefined | (() => void) },
+    { label: "Present Today", value: stats?.presentCount ?? "-", color: "bg-emerald-50 border-emerald-200", text: "text-emerald-700", onClick: undefined },
+    { label: "Absent Today", value: stats?.absentCount ?? "-", color: "bg-red-50 border-red-200", text: "text-red-700", onClick: () => setShowAbsent((v) => !v) },
+    { label: "On Leave", value: stats?.onLeaveCount ?? "-", color: "bg-yellow-50 border-yellow-200", text: "text-yellow-700", onClick: undefined },
+    { label: "On Outstation", value: stats?.onOutstationCount ?? "-", color: "bg-cyan-50 border-cyan-200", text: "text-cyan-700", onClick: undefined },
+    { label: "Pending Leaves", value: stats?.pendingLeaves ?? "-", color: "bg-blue-50 border-blue-200", text: "text-blue-700", onClick: undefined },
+    { label: "Pending Corrections", value: stats?.pendingCorrections ?? "-", color: "bg-purple-50 border-purple-200", text: "text-purple-700", onClick: undefined },
   ];
 
   return (
@@ -84,14 +93,64 @@ export default function AdminDashboardPage() {
 
         {error && <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {/* Holiday / Off Day banners */}
+        {holiday && (
+          <div className="flex items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3">
+            <span className="text-xl">🏖️</span>
+            <div>
+              <div className="text-sm font-semibold text-indigo-800">Office Holiday — {holiday.name}</div>
+              <div className="text-xs text-indigo-600">Today is a declared holiday. Attendance figures reflect actual check-ins only.</div>
+            </div>
+          </div>
+        )}
+        {isOffDay && !holiday && (
+          <div className="flex items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">
+            <span className="text-xl">📅</span>
+            <div>
+              <div className="text-sm font-semibold text-violet-800">Weekly Off Day</div>
+              <div className="text-xs text-violet-600">Staff are not expected to attend today. Absent count only reflects workday-override holders.</div>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
           {statCards.map((c) => (
-            <div key={c.label} className={`rounded-2xl border p-4 ${c.color}`}>
+            <div
+              key={c.label}
+              className={`rounded-2xl border p-4 ${c.color} ${c.onClick ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
+              onClick={c.onClick}
+            >
               <div className={`text-2xl font-bold ${c.text}`}>{c.value}</div>
               <div className="mt-1 text-xs text-zinc-500">{c.label}</div>
+              {c.onClick && <div className="mt-1 text-[10px] text-zinc-400">Click to {showAbsent ? "hide" : "view"}</div>}
             </div>
           ))}
         </div>
+
+        {/* Absent employees expandable list */}
+        {showAbsent && absentUsers.length > 0 && (
+          <Card title={`Absent Today (${absentUsers.length})`}>
+            <div className="divide-y divide-zinc-100">
+              {absentUsers.map((u) => (
+                <div key={u.id} className="flex items-center gap-3 py-2.5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-semibold text-red-700">
+                    {u.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-zinc-900 text-sm">{u.name}</div>
+                    <div className="text-xs text-zinc-400">{u.department ?? ""}{u.jobTitle ? ` · ${u.jobTitle}` : ""}</div>
+                  </div>
+                  <div className="text-xs text-zinc-400">{u.email ?? ""}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+        {showAbsent && absentUsers.length === 0 && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            No absent employees today.
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-2">
           <Card title={`Checked In Today (${checkedIn.length})`}>

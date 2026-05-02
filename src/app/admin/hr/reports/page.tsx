@@ -7,7 +7,7 @@ import { Card } from "../../../../components/ui/Card";
 import { Button } from "../../../../components/ui/Button";
 import { apiFetch } from "../../../../lib/clientApi";
 import { getToken, parseJwt } from "../../../../lib/clientAuth";
-import { downloadTextFile } from "../../../../lib/exportUtils";
+import { downloadTextFile, exportHtmlReport } from "../../../../lib/exportUtils";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
@@ -90,6 +90,45 @@ export default function HRReportsPage() {
     downloadTextFile(`hr_report_${activeTab}.csv`, csv, "text/csv");
   };
 
+  const tableStyle = `<style>body{font-family:Arial,sans-serif;padding:24px;color:#18181b}h1{font-size:18px;font-weight:700;margin:0 0 4px}p.sub{font-size:12px;color:#71717a;margin:0 0 16px}table{width:100%;border-collapse:collapse}th{background:#f4f4f5;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e4e4e7}td{padding:8px 12px;font-size:12px;border-bottom:1px solid #f4f4f5}.present{color:#16a34a;font-weight:600}.leave{color:#ca8a04;font-weight:600}.outstation{color:#2563eb;font-weight:600}.absent{color:#dc2626;font-weight:600}@media print{body{padding:0}}</style>`;
+
+  const exportPdf = () => {
+    if (!data) return;
+    let html = "";
+    if (activeTab === "absent_today") {
+      const all = [
+        ...(data.present ?? []).map((u: any) => ({ ...u, status: "Present", cls: "present" })),
+        ...(data.onLeave ?? []).map((u: any) => ({ ...u, status: "On Leave", cls: "leave" })),
+        ...(data.onOutstation ?? []).map((u: any) => ({ ...u, status: "On Outstation", cls: "outstation" })),
+        ...(data.absent ?? []).map((u: any) => ({ ...u, status: "Absent", cls: "absent" })),
+      ];
+      html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Attendance Today</title>${tableStyle}</head><body>
+        <h1>Daily Attendance Report</h1><p class="sub">Generated ${new Date().toLocaleString()}</p>
+        <table><thead><tr><th>Name</th><th>Department</th><th>Job Title</th><th>Status</th></tr></thead><tbody>
+        ${all.map((u) => `<tr><td>${u.name}</td><td>${u.department ?? ""}</td><td>${u.jobTitle ?? ""}</td><td class="${u.cls}">${u.status}</td></tr>`).join("")}
+        </tbody></table></body></html>`;
+    } else if (activeTab === "monthly_summary") {
+      html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Monthly Summary</title>${tableStyle}</head><body>
+        <h1>Monthly Attendance Summary — ${MONTHS[month - 1]} ${year}</h1><p class="sub">Generated ${new Date().toLocaleString()}</p>
+        <table><thead><tr><th>Employee</th><th>Dept</th><th>Present</th><th>Late</th><th>Early Dep</th><th>Overtime</th><th>Leave Days</th><th>Total Hours</th></tr></thead><tbody>
+        ${(data.summaries ?? []).map((r: SummaryRow) => `<tr><td>${r.userName}</td><td>${r.department ?? ""}</td><td>${r.present}</td><td>${r.late}</td><td>${r.earlyDeparture}</td><td>${r.overtime}</td><td>${r.leaveDays}</td><td>${r.totalHours}</td></tr>`).join("")}
+        </tbody></table></body></html>`;
+    } else if (activeTab === "late_arrivals") {
+      html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Late Arrivals</title>${tableStyle}</head><body>
+        <h1>Late Arrivals — ${MONTHS[month - 1]} ${year}</h1><p class="sub">Generated ${new Date().toLocaleString()}</p>
+        <table><thead><tr><th>Employee</th><th>Department</th><th>Date</th><th>Minutes Late</th></tr></thead><tbody>
+        ${(data.rows ?? []).map((r: LateRow) => `<tr><td>${r.userName}</td><td>${r.department ?? ""}</td><td>${r.date}</td><td>${r.minutesLate}</td></tr>`).join("")}
+        </tbody></table></body></html>`;
+    } else if (activeTab === "overtime") {
+      html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Overtime</title>${tableStyle}</head><body>
+        <h1>Overtime Report — ${MONTHS[month - 1]} ${year}</h1><p class="sub">Generated ${new Date().toLocaleString()}</p>
+        <table><thead><tr><th>Employee</th><th>Department</th><th>Date</th><th>Hours Worked</th></tr></thead><tbody>
+        ${(data.rows ?? []).map((r: OvertimeRow) => `<tr><td>${r.userName}</td><td>${r.department ?? ""}</td><td>${r.date}</td><td>${r.hoursWorked ?? ""}</td></tr>`).join("")}
+        </tbody></table></body></html>`;
+    }
+    if (html) exportHtmlReport(`hr_report_${activeTab}`, html);
+  };
+
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
   const tabs = [
     { id: "absent_today", label: "Absent Today" },
@@ -108,7 +147,8 @@ export default function HRReportsPage() {
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={load}>Refresh</Button>
-            <Button variant="secondary" onClick={exportCsv}>Export CSV</Button>
+            <Button variant="secondary" onClick={exportCsv}>CSV</Button>
+            <Button variant="secondary" onClick={exportPdf}>PDF</Button>
           </div>
         </div>
 

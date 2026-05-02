@@ -10,7 +10,7 @@ import { Input } from "../../../../components/ui/Input";
 import { Combobox } from "../../../../components/ui/Combobox";
 import { apiFetch } from "../../../../lib/clientApi";
 import { getToken, parseJwt } from "../../../../lib/clientAuth";
-import { downloadTextFile } from "../../../../lib/exportUtils";
+import { downloadTextFile, exportHtmlReport } from "../../../../lib/exportUtils";
 
 type Summary = {
   totalSales: number;
@@ -159,6 +159,26 @@ export default function AdminSalesReportsPage() {
     await downloadTextFile(`sales-collections-${from}-to-${to}.csv`, [header, ...rows].join("\n"), "text/csv");
   };
 
+  const pdfTableStyle = `<style>body{font-family:Arial,sans-serif;padding:24px;color:#18181b}h1{font-size:18px;font-weight:700;margin:0 0 4px}p.sub{font-size:12px;color:#71717a;margin:0 0 16px}table{width:100%;border-collapse:collapse}th{background:#f4f4f5;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e4e4e7}td{padding:8px 12px;font-size:12px;border-bottom:1px solid #f4f4f5}.right{text-align:right;font-weight:600}@media print{body{padding:0}}</style>`;
+
+  const exportOrdersPdf = () => {
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Orders Report</title>${pdfTableStyle}</head><body>
+      <h1>Sales Orders Report</h1><p class="sub">${from} to ${to} · ${orders.length} orders — Generated ${new Date().toLocaleString()}</p>
+      <table><thead><tr><th>Date</th><th>Salesman</th><th>Customer</th><th>Payment</th><th class="right">Total</th></tr></thead><tbody>
+      ${orders.map((o) => `<tr><td>${new Date(o.createdAt).toLocaleString()}</td><td>${o.user.name}</td><td>${o.shop.name}</td><td style="text-transform:capitalize">${o.paymentType}</td><td class="right">${o.total.toFixed(2)}</td></tr>`).join("")}
+      </tbody></table></body></html>`;
+    exportHtmlReport(`sales_orders_${from}_to_${to}`, html);
+  };
+
+  const exportPaymentsPdf = () => {
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Collections Report</title>${pdfTableStyle}</head><body>
+      <h1>Collections Report</h1><p class="sub">${from} to ${to} · ${payments.length} records — Generated ${new Date().toLocaleString()}</p>
+      <table><thead><tr><th>Date</th><th>Salesman</th><th>Received From</th><th>Customer</th><th>Method</th><th class="right">Amount</th></tr></thead><tbody>
+      ${payments.map((p) => `<tr><td>${new Date(p.createdAt).toLocaleString()}</td><td>${p.user.name}</td><td>${p.customerName}</td><td>${p.shop?.name ?? "—"}</td><td>${p.method.replace("_", " ")}</td><td class="right">${p.amount.toFixed(2)}</td></tr>`).join("")}
+      </tbody></table></body></html>`;
+    exportHtmlReport(`sales_collections_${from}_to_${to}`, html);
+  };
+
   const exportVisitsCsv = async () => {
     const header = ["Date", "Salesman", "Customer", "CustomerType", "Notes", "Products Discussed"].join(",");
     const rows = visits.map((v) =>
@@ -182,6 +202,15 @@ export default function AdminSalesReportsPage() {
         .join(","),
     );
     await downloadTextFile(`sales-visits-${from}-to-${to}.csv`, [header, ...rows].join("\n"), "text/csv");
+  };
+
+  const exportVisitsPdf = () => {
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Visits Report</title>${pdfTableStyle}</head><body>
+      <h1>Customer Visits Report</h1><p class="sub">${from} to ${to} · ${visits.length} visits — Generated ${new Date().toLocaleString()}</p>
+      <table><thead><tr><th>Date</th><th>Salesman</th><th>Customer</th><th>Type</th><th>Notes</th><th>Products Discussed</th></tr></thead><tbody>
+      ${visits.map((v) => `<tr><td>${new Date(v.visitDate).toLocaleDateString()}</td><td>${v.user.name}</td><td>${v.shop.name}</td><td>${v.customerType === "new_customer" ? "New" : "Existing"}</td><td>${v.notes ?? ""}</td><td>${(v.products ?? []).map((p) => p.productName + (p.offeredPrice != null ? ` @${p.offeredPrice.toFixed(2)}` : "") + (p.interest ? ` (${p.interest})` : "")).join(", ")}</td></tr>`).join("")}
+      </tbody></table></body></html>`;
+    exportHtmlReport(`sales_visits_${from}_to_${to}`, html);
   };
 
   return (
@@ -235,10 +264,9 @@ export default function AdminSalesReportsPage() {
         )}
 
         <Card title={`Orders (${orders.length})`}>
-          <div className="mb-2 flex justify-end">
-            <Button variant="secondary" onClick={exportOrdersCsv} disabled={orders.length === 0}>
-              Export CSV
-            </Button>
+          <div className="mb-2 flex justify-end gap-2">
+            <Button variant="secondary" onClick={exportOrdersCsv} disabled={orders.length === 0}>CSV</Button>
+            <Button variant="secondary" onClick={exportOrdersPdf} disabled={orders.length === 0}>PDF</Button>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -267,10 +295,9 @@ export default function AdminSalesReportsPage() {
         </Card>
 
         <Card title={`Collections (${payments.length})`}>
-          <div className="mb-2 flex justify-end">
-            <Button variant="secondary" onClick={exportPaymentsCsv} disabled={payments.length === 0}>
-              Export CSV
-            </Button>
+          <div className="mb-2 flex justify-end gap-2">
+            <Button variant="secondary" onClick={exportPaymentsCsv} disabled={payments.length === 0}>CSV</Button>
+            <Button variant="secondary" onClick={exportPaymentsPdf} disabled={payments.length === 0}>PDF</Button>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -301,10 +328,9 @@ export default function AdminSalesReportsPage() {
         </Card>
 
         <Card title={`Visits (${visits.length})`}>
-          <div className="mb-2 flex justify-end">
-            <Button variant="secondary" onClick={exportVisitsCsv} disabled={visits.length === 0}>
-              Export CSV
-            </Button>
+          <div className="mb-2 flex justify-end gap-2">
+            <Button variant="secondary" onClick={exportVisitsCsv} disabled={visits.length === 0}>CSV</Button>
+            <Button variant="secondary" onClick={exportVisitsPdf} disabled={visits.length === 0}>PDF</Button>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">

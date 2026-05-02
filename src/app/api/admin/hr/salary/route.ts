@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../../../../lib/prisma";
 import { assertRole, getBearerToken, verifyAccessToken } from "../../../../../lib/auth";
 import { logActivity } from "../../../../../lib/activityLog";
+import { notifyUser } from "../../../../../lib/notify";
 
 async function getAdmin(req: Request) {
   const token = getBearerToken(req.headers.get("authorization"));
@@ -85,6 +86,19 @@ export async function POST(req: Request) {
   });
 
   logActivity(admin.id, "upsert_salary", "hr", `Salary record for ${d.userId} ${d.month}/${d.year}`).catch(() => null);
+
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const monthName = monthNames[(d.month - 1)] ?? String(d.month);
+  notifyUser({
+    userId: d.userId,
+    type: "salary_recorded",
+    title: d.paidAt
+      ? `Your salary for ${monthName} ${d.year} has been paid`
+      : `Salary record updated — ${monthName} ${d.year}`,
+    body: `Net salary: ${record.currency} ${record.netSalary.toLocaleString()}${d.notes ? ` · ${d.notes}` : ""}`,
+    link: "/profile",
+  }).catch(() => null);
+
   return NextResponse.json({ record });
 }
 

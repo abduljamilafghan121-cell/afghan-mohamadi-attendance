@@ -158,6 +158,7 @@ enum NotificationType {
   system
   order_submitted
   order_decided
+  salary_recorded
 }
 
 model Notification {
