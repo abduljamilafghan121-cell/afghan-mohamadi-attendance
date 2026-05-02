@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
@@ -8,6 +9,8 @@ import { apiFetch } from "../../lib/clientApi";
 import { clearToken, getToken, parseJwt, setToken } from "../../lib/clientAuth";
 
 export default function LoginPage() {
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -48,16 +51,21 @@ export default function LoginPage() {
       try {
         await apiFetch("/api/me");
         if (jwt.role === "admin" || jwt.role === "manager") {
-          window.location.href = "/admin/dashboard";
+          // ── FIX: was window.location.href = "/admin/dashboard"
+          // window.location.href causes a full page reload which destroys the
+          // SplashScreen component and its timers.
+          // router.replace() is a soft navigation — the root layout (and
+          // SplashScreen) stays mounted so the 7-second timer keeps running.
+          router.replace("/admin/dashboard");
         } else {
-          window.location.href = "/employee";
+          router.replace("/employee"); // ── FIX: was window.location.href
         }
       } catch {
         clearToken();
         setInitializing(false);
       }
     })();
-  }, []);
+  }, [router]);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -73,9 +81,9 @@ export default function LoginPage() {
       });
       setToken(res.token, rememberMe);
       if (res.user.role === "admin" || res.user.role === "manager") {
-        window.location.href = "/admin/dashboard";
+        router.replace("/admin/dashboard"); // ── FIX: was window.location.href
       } else {
-        window.location.href = "/employee";
+        router.replace("/employee"); // ── FIX: was window.location.href
       }
     } catch (err: any) {
       setError(err?.message ?? "Invalid email or password.");
