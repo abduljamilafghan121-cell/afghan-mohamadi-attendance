@@ -1,28 +1,60 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 const SPLASH_KEY = "attendix_splash_shown";
 const DISPLAY_MS = 7000;
 const FADE_MS = 600;
 
 export function SplashScreen() {
-  const [phase, setPhase] = useState<"hidden" | "enter" | "hold" | "exit">("hidden");
+  /**
+   * Phases:
+   *  "hidden"  → returns null (before splash needed, or after it finishes)
+   *  "loading" → overlay is painted immediately (covers the white background)
+   *              inner elements are still opacity-0 — set synchronously in
+   *              useLayoutEffect so it appears BEFORE the browser's first paint
+   *  "enter"   → inner elements animate in (set via rAF on the next frame)
+   *  "exit"    → overlay fades out
+   */
+  const [phase, setPhase] = useState<"hidden" | "loading" | "enter" | "exit">(
+    "hidden"
+  );
 
-  useEffect(() => {
+  /**
+   * useRef guard — survives the React Strict Mode cleanup/re-invoke cycle.
+   * Without this, the double-invocation in dev mode cancels the timers on
+   * cleanup, then the second run hits the sessionStorage guard and skips
+   * re-creating them, so the splash never exits (or never enters).
+   */
+  const initialized = useRef(false);
+
+  useLayoutEffect(() => {
+    // Already initialised in this render tree (Strict Mode guard)
+    if (initialized.current) return;
+    // Already shown in this browser session
     if (sessionStorage.getItem(SPLASH_KEY)) return;
+
+    initialized.current = true;
+    // Mark as shown now — if something unmounts us we don't show it again
     sessionStorage.setItem(SPLASH_KEY, "1");
 
-    // Start enter animation on next frame
+    // ── FIX 1: set to "loading" synchronously HERE (useLayoutEffect runs
+    //    before the browser paints), so the blue overlay covers the white
+    //    background on the very first frame — no white flash.
+    setPhase("loading");
+
+    // ── FIX 2: trigger the inner-element animation on the next frame so
+    //    CSS transitions have a "from" state to animate from.
     const t0 = requestAnimationFrame(() => setPhase("enter"));
 
-    // Switch to exit after display time
+    // ── FIX 2 (cont): timers start from THIS point (when the overlay is
+    //    already on screen) so DISPLAY_MS is accurate.
     const t1 = setTimeout(() => setPhase("exit"), DISPLAY_MS);
-
-    // Unmount after fade-out
     const t2 = setTimeout(() => setPhase("hidden"), DISPLAY_MS + FADE_MS);
 
     return () => {
+      // NOTE: we intentionally do NOT reset initialized.current here.
+      // That keeps the Strict Mode second-run from re-initialising.
       cancelAnimationFrame(t0);
       clearTimeout(t1);
       clearTimeout(t2);
@@ -31,7 +63,7 @@ export function SplashScreen() {
 
   if (phase === "hidden") return null;
 
-  const entered = phase === "enter" || phase === "hold";
+  const entered = phase === "enter";
   const exiting = phase === "exit";
 
   return (
@@ -67,7 +99,7 @@ export function SplashScreen() {
 
       {/* Logo */}
       <div style={{
-        transition: `transform 0.7s cubic-bezier(0.34,1.56,0.64,1), opacity 0.6s ease`,
+        transition: "transform 0.7s cubic-bezier(0.34,1.56,0.64,1), opacity 0.6s ease",
         transform: entered ? "scale(1) translateY(0)" : "scale(0.6) translateY(20px)",
         opacity: entered ? 1 : 0,
         marginBottom: 28,
