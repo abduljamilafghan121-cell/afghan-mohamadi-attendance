@@ -27,8 +27,6 @@ export default function RootLayout({
       className={`${inter.variable} h-full antialiased`}
     >
       <head>
-        {/* Eliminate white flash: dark background painted before any JS/CSS loads */}
-        <style>{`html,body{background:#060d2e}`}</style>
         <script
           dangerouslySetInnerHTML={{
             __html:
