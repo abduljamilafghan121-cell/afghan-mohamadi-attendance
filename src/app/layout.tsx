@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppResumeHandler } from "../components/AppResumeHandler";
+import { SWRegister } from "../components/SWRegister";
+import { OfflineGuard } from "../components/OfflineGuard";
+import { SplashScreen } from "../components/SplashScreen";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -32,6 +35,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col">
+        <SplashScreen />
+        <OfflineGuard />
+        <SWRegister />
         <AppResumeHandler />
         {children}
       </body>
