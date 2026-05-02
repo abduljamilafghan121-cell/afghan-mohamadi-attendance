@@ -159,7 +159,7 @@ export default function SalaryPage() {
     downloadTextFile(`salary_${filterYear}.csv`, [header, ...rows].join("\n"), "text/csv");
   };
 
-  const slipStyle = `<style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:40px;max-width:660px;margin:0 auto;color:#18181b}.org-header{display:flex;align-items:center;gap:16px;padding-bottom:16px;margin-bottom:8px;border-bottom:3px solid #18181b}.org-logo{height:56px;width:56px;object-fit:contain;border-radius:8px;border:1px solid #e4e4e7}.org-name{font-size:20px;font-weight:800;color:#18181b;margin:0}.org-sub{font-size:11px;color:#71717a;margin:3px 0 0}.slip-meta-row{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px;padding-top:10px}.slip-title{font-size:22px;font-weight:800;letter-spacing:.04em;color:#18181b}.slip-date{font-size:12px;color:#71717a;text-align:right}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;font-size:13px}.meta-item label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#71717a;margin-bottom:2px}.meta-item span{font-weight:600}.breakdown{width:100%;border-collapse:collapse;margin-bottom:20px}.breakdown th{background:#f4f4f5;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em}.breakdown td{padding:10px 12px;border-bottom:1px solid #f4f4f5;font-size:13px}.breakdown .amount{text-align:right;font-weight:600}.total-row td{font-size:15px;font-weight:700;border-top:2px solid #18181b;border-bottom:none;padding-top:12px}.status{display:inline-block;padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:600}.paid{background:#dcfce7;color:#16a34a}.pending{background:#fef9c3;color:#ca8a04}.notes{margin-top:16px;padding:12px;background:#f4f4f5;border-radius:8px;font-size:12px;color:#3f3f46}.footer{margin-top:32px;padding-top:12px;border-top:1px solid #e4e4e7;font-size:10px;color:#a1a1aa;text-align:center}@media print{body{padding:16px}}</style>`;
+  const slipStyle = `<style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:40px;max-width:660px;margin:0 auto;color:#18181b}.org-header{display:flex;align-items:center;gap:16px;padding-bottom:16px;margin-bottom:8px;border-bottom:3px solid #18181b}.org-logo{height:56px;width:56px;object-fit:contain;border-radius:8px;border:1px solid #e4e4e7}.org-name{font-size:20px;font-weight:800;color:#18181b;margin:0}.org-sub{font-size:11px;color:#71717a;margin:3px 0 0}.slip-meta-row{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px;padding-top:10px}.slip-title{font-size:22px;font-weight:800;letter-spacing:.04em;color:#18181b}.slip-date{font-size:12px;color:#71717a;text-align:right}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;font-size:13px}.meta-item label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#71717a;margin-bottom:2px}.meta-item span{font-weight:600}.breakdown{width:100%;border-collapse:collapse;margin-bottom:20px}.breakdown th{background:#f4f4f5;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em}.breakdown td{padding:10px 12px;border-bottom:1px solid #f4f4f5;font-size:13px}.breakdown .amount{text-align:right;font-weight:600}.total-row td{font-size:15px;font-weight:700;border-top:2px solid #18181b;border-bottom:none;padding-top:12px}.status{display:inline-block;padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:600}.paid{background:#dcfce7;color:#16a34a}.pending{background:#fef9c3;color:#ca8a04}.notes{margin-top:16px;padding:12px;background:#f4f4f5;border-radius:8px;font-size:12px;color:#3f3f46}.signatures{display:flex;justify-content:space-between;margin-top:48px;gap:24px}.sig-block{flex:1;text-align:center}.sig-line{border-top:1.5px solid #18181b;margin-bottom:8px;height:48px}.sig-name{font-size:12px;font-weight:700;color:#18181b}.sig-label{font-size:10px;color:#71717a;margin-top:2px}.footer{margin-top:28px;padding-top:12px;border-top:1px solid #e4e4e7;font-size:10px;color:#a1a1aa;text-align:center}@media print{body{padding:16px}}</style>`;
 
   const buildOrgHeader = () => {
     if (!org) return "";
@@ -193,6 +193,18 @@ export default function SalaryPage() {
       </table>
       <div>Payment Status: <span class="status ${r.paidAt ? "paid" : "pending"}">${r.paidAt ? `Paid on ${r.paidAt.slice(0, 10)}` : "Pending"}</span></div>
       ${r.notes ? `<div class="notes"><strong>Notes:</strong> ${r.notes}</div>` : ""}
+      <div class="signatures">
+        <div class="sig-block">
+          <div class="sig-line"></div>
+          <div class="sig-name">${r.user.name}</div>
+          <div class="sig-label">Employee Signature</div>
+        </div>
+        <div class="sig-block">
+          <div class="sig-line"></div>
+          <div class="sig-name">${r.createdBy?.name ?? "Admin"}</div>
+          <div class="sig-label">Authorised Signatory</div>
+        </div>
+      </div>
       <div class="footer">${org?.title ?? ""} &nbsp;·&nbsp; Issued by: ${r.createdBy?.name ?? "Admin"} &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</div>
     </body></html>`;
     exportHtmlReport(`payslip_${r.user.name.replace(/\s+/g, "_")}_${MONTHS[r.month - 1]}_${r.year}`, html);
