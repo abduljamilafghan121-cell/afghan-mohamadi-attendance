@@ -237,8 +237,38 @@ export default function EmployeePage() {
     const anyWindow = window as any;
     const hasBarcodeDetector = Boolean(anyWindow.BarcodeDetector);
 
+    // ── IMPORTANT: getUserMedia MUST be called first, before any awaits,
+    //   so it is still within the browser's user-gesture activation window.
+    //   Calling it after any await (including setScannerOpen / waitForVideoElement)
+    //   causes iOS Safari and many Android browsers to deny permission. ──
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+    } catch (e: any) {
+      const name = e?.name ?? "";
+      if (name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError") {
+        setScannerError(
+          "Camera access was denied. Please tap 'Allow' when prompted, or go to your browser/phone Settings → Site Permissions → Camera and allow this site."
+        );
+      } else if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+        setScannerError("No camera was found on this device.");
+      } else if (name === "NotReadableError" || name === "TrackStartError") {
+        setScannerError("Camera is already in use by another app. Close it and try again.");
+      } else {
+        setScannerError(e?.message ?? "Failed to access camera. Please check permissions and try again.");
+      }
+      return;
+    }
+
+    // Camera granted — now show the UI and attach the stream
+    streamRef.current = stream;
+    setScannerOpen(true);
+
     const waitForVideoElement = async () => {
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < 40; i++) {
         if (videoRef.current) return videoRef.current;
         await new Promise((r) => setTimeout(r, 25));
       }
@@ -248,33 +278,21 @@ export default function EmployeePage() {
     const waitForVideoReady = async (video: HTMLVideoElement) => {
       if (video.readyState >= 2 && video.videoWidth > 0) return;
       await new Promise<void>((resolve) => {
-        const onReady = () => {
-          cleanup();
-          resolve();
-        };
+        const onReady = () => { cleanup(); resolve(); };
         const cleanup = () => {
           video.removeEventListener("loadedmetadata", onReady);
           video.removeEventListener("canplay", onReady);
         };
         video.addEventListener("loadedmetadata", onReady);
         video.addEventListener("canplay", onReady);
-        setTimeout(() => {
-          cleanup();
-          resolve();
-        }, 2000);
+        setTimeout(() => { cleanup(); resolve(); }, 3000);
       });
     };
 
     try {
-      setScannerOpen(true);
       const video = await waitForVideoElement();
-      if (!video) throw new Error("Video not ready");
+      if (!video) throw new Error("Camera UI failed to load. Please try again.");
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
-        audio: false,
-      });
-      streamRef.current = stream;
       video.srcObject = stream;
       await video.play();
       await waitForVideoReady(video);
@@ -307,7 +325,7 @@ export default function EmployeePage() {
               setMessage("QR scanned successfully.");
             }
           } catch {
-            // ignore detection errors
+            // ignore frame detection errors
           }
         }, 250);
       } else {
@@ -323,7 +341,7 @@ export default function EmployeePage() {
       }
     } catch (e: any) {
       stopScanner();
-      setScannerError(e?.message ?? "Failed to start camera");
+      setScannerError(e?.message ?? "Failed to start camera. Please try again.");
     }
   };
 
