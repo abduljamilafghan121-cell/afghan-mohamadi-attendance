@@ -40,7 +40,10 @@ export async function GET(req: Request) {
 
   const records = await prisma.salaryRecord.findMany({
     where,
-    include: { user: { select: { id: true, name: true, email: true, department: true } } },
+    include: {
+      user: { select: { id: true, name: true, email: true, department: true } },
+      createdBy: { select: { id: true, name: true } },
+    },
     orderBy: [{ year: "desc" }, { month: "desc" }],
   });
 

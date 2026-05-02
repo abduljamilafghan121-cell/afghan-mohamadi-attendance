@@ -16,6 +16,7 @@ type SalaryRecord = {
   netSalary: number; currency: string; payFrequency: string;
   notes: string | null; paidAt: string | null; createdAt: string;
   user: { id: string; name: string; email: string | null; department: string | null };
+  createdBy: { id: string; name: string } | null;
 };
 type UserOption = { id: string; name: string; email: string | null; department: string | null };
 type OrgInfo = { title: string; logoUrl: string | null };
@@ -192,7 +193,7 @@ export default function SalaryPage() {
       </table>
       <div>Payment Status: <span class="status ${r.paidAt ? "paid" : "pending"}">${r.paidAt ? `Paid on ${r.paidAt.slice(0, 10)}` : "Pending"}</span></div>
       ${r.notes ? `<div class="notes"><strong>Notes:</strong> ${r.notes}</div>` : ""}
-      <div class="footer">${org?.title ?? ""} &nbsp;·&nbsp; This is a computer-generated payslip.</div>
+      <div class="footer">${org?.title ?? ""} &nbsp;·&nbsp; Issued by: ${r.createdBy?.name ?? "Admin"} &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</div>
     </body></html>`;
     exportHtmlReport(`payslip_${r.user.name.replace(/\s+/g, "_")}_${MONTHS[r.month - 1]}_${r.year}`, html);
   };
