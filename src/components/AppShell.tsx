@@ -10,7 +10,8 @@ type Org = { title: string; logoUrl: string | null };
 
 type AdminItem =
   | { kind: "link"; href: string; label: string; icon: React.ReactNode }
-  | { kind: "sep"; label: string };
+  | { kind: "sep"; label: string }
+  | { kind: "query"; label: string; href: string; query: string };
 
 const adminItems: AdminItem[] = [
   { kind: "link", href: "/admin/dashboard", label: "Dashboard", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> },
@@ -52,6 +53,40 @@ const adminItems: AdminItem[] = [
 ];
 
 const adminLinks = adminItems.filter((i): i is Extract<AdminItem, { kind: "link" }> => i.kind === "link");
+
+const adminSearchSources = [
+  { label: "Dashboard", href: "/admin/dashboard", query: "dashboard" },
+  { label: "Users", href: "/admin/users", query: "users employee staff name email department role" },
+  { label: "Offices", href: "/admin/offices", query: "offices office location" },
+  { label: "Organization", href: "/admin/org", query: "organization org company" },
+  { label: "Daily QR", href: "/admin/qr", query: "qr check in attendance" },
+  { label: "QR History", href: "/admin/qr-history", query: "qr history scan log" },
+  { label: "Attendance Log", href: "/admin/attendance", query: "attendance employee check in check out" },
+  { label: "Work Hours", href: "/admin/hours", query: "work hours shift time" },
+  { label: "Leaves", href: "/admin/leaves", query: "leave leave request employee name" },
+  { label: "Leave Balance", href: "/admin/leave-balance", query: "leave balance employee name" },
+  { label: "Corrections", href: "/admin/corrections", query: "correction attendance employee name" },
+  { label: "Holidays", href: "/admin/holidays", query: "holiday holidays off day" },
+  { label: "Work Overrides", href: "/admin/workday-overrides", query: "override workday employees" },
+  { label: "Outstation", href: "/admin/outstation", query: "outstation travel employee" },
+  { label: "Sales Dashboard", href: "/admin/sales/dashboard", query: "sales dashboard" },
+  { label: "Order Approvals", href: "/admin/sales/orders", query: "orders order approvals customer shop sale" },
+  { label: "Sales Reports", href: "/admin/sales/reports", query: "sales reports customer shop product order" },
+  { label: "Products", href: "/admin/sales/products", query: "products product name price item" },
+  { label: "Regions", href: "/admin/sales/regions", query: "regions area territory" },
+  { label: "Customer Regions", href: "/admin/sales/customers", query: "customers customer shop name region" },
+  { label: "Weekly Plans", href: "/admin/sales/weekly-plans", query: "weekly plans customer shop route" },
+  { label: "Daily Plans", href: "/admin/sales/plans", query: "daily plans customer shop route" },
+  { label: "HR Reports", href: "/admin/hr/reports", query: "hr reports employee name" },
+  { label: "Employee Directory", href: "/admin/hr/directory", query: "employee directory staff name department" },
+  { label: "Contracts", href: "/admin/hr/contracts", query: "contracts employee name" },
+  { label: "Payroll & Salary", href: "/admin/hr/salary", query: "salary payroll employee name" },
+  { label: "Performance", href: "/admin/hr/performance", query: "performance employee name" },
+  { label: "Training & Dev", href: "/admin/hr/training", query: "training employee name" },
+  { label: "Disciplinary", href: "/admin/hr/disciplinary", query: "disciplinary employee name" },
+  { label: "Activity Log", href: "/admin/activity-log", query: "activity log audit" },
+  { label: "Send Announcement", href: "/admin/notifications", query: "announcement notification message" },
+] as const;
 
 function NavLink({
   href,
@@ -184,7 +219,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     for (const item of adminItems) {
       if (item.kind === "sep") {
         pendingSep = item;
-      } else if (item.label.toLowerCase().includes(q)) {
+      } else if (
+        item.label.toLowerCase().includes(q) ||
+        adminSearchSources.some((s) => s.href === item.href && s.query.includes(q))
+      ) {
         if (pendingSep) { result.push(pendingSep); pendingSep = null; }
         result.push(item);
       }
