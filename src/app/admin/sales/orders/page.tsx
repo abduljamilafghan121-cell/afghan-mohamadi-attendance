@@ -499,7 +499,7 @@ export default function AdminOrdersPage() {
     <h1>${esc(orgName || "Attendix")}</h1>
     <h2>Sales Orders Report</h2>
     <div><span class="status-badge">${statusLabel} Orders</span></div>
-    <div class="meta">Generated on ${new Date().toLocaleString()} &nbsp;|&nbsp; Exported by ${esc(user?.name ?? "Admin")}</div>
+    <div class="meta">Generated on ${new Date().toLocaleString()} &nbsp;|&nbsp; Exported by Admin</div>
   </div>
 
   <div class="summary">
