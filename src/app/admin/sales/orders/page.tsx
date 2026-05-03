@@ -11,6 +11,7 @@ import { Combobox } from "../../../../components/ui/Combobox";
 import { apiFetch } from "../../../../lib/clientApi";
 import { getToken, parseJwt } from "../../../../lib/clientAuth";
 import { openWhatsApp } from "../../../../lib/clientWhatsapp";
+import { exportHtmlReport } from "../../../../lib/exportUtils";
 
 type Product = { id: string; name: string; price: number };
 // `unitPrice` is an explicit price override. When null, the line uses the
@@ -67,6 +68,7 @@ export default function AdminOrdersPage() {
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
   const [dispatchMsg, setDispatchMsg] = useState<string | null>(null);
+  const [orgName, setOrgName] = useState("");
 
   const dispatchOrder = async (id: string) => {
     setBusyId(id);
@@ -109,6 +111,10 @@ export default function AdminOrdersPage() {
     if (!token) router.push("/login");
     if (user && user.role !== "admin") router.push("/employee");
   }, [token, user, router]);
+
+  useEffect(() => {
+    fetch("/api/org").then((r) => r.json()).then((d) => { if (d?.org?.title) setOrgName(d.org.title); }).catch(() => {});
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -241,14 +247,162 @@ export default function AdminOrdersPage() {
 
   const fmt = (d: string) => new Date(d).toLocaleString();
 
+  const exportPdf = async () => {
+    try {
+      const esc = (v: string) =>
+        v.replace(/[&<>"']/g, (c) =>
+          c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === '"' ? "&quot;" : "&#39;"
+        );
+
+      const totalValue = orders.reduce((s, o) => s + o.total, 0);
+      const cashCount = orders.filter((o) => o.paymentType === "cash").length;
+      const creditCount = orders.filter((o) => o.paymentType === "credit").length;
+      const cashValue = orders.filter((o) => o.paymentType === "cash").reduce((s, o) => s + o.total, 0);
+      const creditValue = orders.filter((o) => o.paymentType === "credit").reduce((s, o) => s + o.total, 0);
+
+      const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+      const statusColor =
+        status === "pending" ? "#b45309" :
+        status === "approved" ? "#15803d" :
+        status === "dispatched" ? "#1d4ed8" : "#b91c1c";
+
+      const tableRows = orders.map((o, idx) => {
+        const itemsList = o.items.map((it) =>
+          `${esc(it.productName)} × ${it.quantity} @ ${it.unitPrice.toFixed(2)}`
+        ).join("<br/>");
+
+        const reviewLine = o.reviewedBy
+          ? `${statusLabel} by ${esc(o.reviewedBy.name)}${o.reviewedAt ? ` on ${fmt(o.reviewedAt)}` : ""}${o.reviewNotes ? `<br/><em>"${esc(o.reviewNotes)}"</em>` : ""}`
+          : "—";
+
+        const dispatchLine = o.status === "dispatched" && o.dispatchedBy
+          ? `${esc(o.dispatchedBy.name)}${o.dispatchedAt ? `<br/>${fmt(o.dispatchedAt)}` : ""}`
+          : status === "dispatched" ? "—" : "";
+
+        return `
+        <tr>
+          <td class="center">${idx + 1}</td>
+          <td>${fmt(o.createdAt)}</td>
+          <td><strong>${esc(o.shop.name)}</strong></td>
+          <td>${esc(o.user.name)}</td>
+          <td class="center">${o.paymentType.charAt(0).toUpperCase() + o.paymentType.slice(1)}</td>
+          <td class="items">${itemsList}</td>
+          <td class="right"><strong>${o.total.toFixed(2)}</strong></td>
+          <td>${reviewLine}</td>
+          ${status === "dispatched" ? `<td>${dispatchLine}</td>` : ""}
+          <td>${o.notes ? esc(o.notes) : "—"}</td>
+        </tr>`;
+      }).join("");
+
+      const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Orders Report — ${statusLabel} — ${orgName}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #111; padding: 32px; font-size: 11px; }
+    .header { text-align: center; border-bottom: 3px solid #111; padding-bottom: 16px; margin-bottom: 20px; }
+    .header h1 { font-size: 22px; font-weight: bold; letter-spacing: 1px; }
+    .header h2 { font-size: 15px; color: #444; margin-top: 4px; }
+    .header .status-badge { display: inline-block; margin-top: 8px; padding: 3px 14px; border-radius: 20px; font-size: 12px; font-weight: bold; color: ${statusColor}; border: 1.5px solid ${statusColor}; }
+    .header .meta { font-size: 10px; color: #888; margin-top: 6px; }
+    .summary { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .summary-box { border: 1px solid #ddd; border-radius: 6px; padding: 10px 16px; min-width: 110px; text-align: center; }
+    .summary-box .label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+    .summary-box .value { font-size: 18px; font-weight: bold; margin-top: 2px; color: #111; }
+    .summary-box .sub { font-size: 9px; color: #666; margin-top: 2px; }
+    .summary-box.total .value { color: #1d4ed8; }
+    .summary-box.cash .value { color: #15803d; }
+    .summary-box.credit .value { color: #b45309; }
+    table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+    th { background: #f3f4f6; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 8px; text-align: left; border-bottom: 2px solid #ddd; white-space: nowrap; }
+    th.center, td.center { text-align: center; }
+    th.right, td.right { text-align: right; }
+    td { padding: 7px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+    tr:nth-child(even) td { background: #fafafa; }
+    td.items { font-size: 10px; color: #333; line-height: 1.6; }
+    .footer { margin-top: 24px; font-size: 10px; color: #aaa; text-align: center; border-top: 1px solid #eee; padding-top: 12px; }
+    @media print { body { padding: 16px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${esc(orgName || "Attendix")}</h1>
+    <h2>Sales Orders Report</h2>
+    <div><span class="status-badge">${statusLabel} Orders</span></div>
+    <div class="meta">Generated on ${new Date().toLocaleString()} &nbsp;|&nbsp; Exported by ${esc(user?.name ?? "Admin")}</div>
+  </div>
+
+  <div class="summary">
+    <div class="summary-box total">
+      <div class="label">Total Orders</div>
+      <div class="value">${orders.length}</div>
+    </div>
+    <div class="summary-box total">
+      <div class="label">Total Value</div>
+      <div class="value">${totalValue.toFixed(2)}</div>
+    </div>
+    <div class="summary-box cash">
+      <div class="label">Cash Orders</div>
+      <div class="value">${cashCount}</div>
+      <div class="sub">${cashValue.toFixed(2)}</div>
+    </div>
+    <div class="summary-box credit">
+      <div class="label">Credit Orders</div>
+      <div class="value">${creditCount}</div>
+      <div class="sub">${creditValue.toFixed(2)}</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="center">#</th>
+        <th>Date</th>
+        <th>Shop</th>
+        <th>Sales Rep</th>
+        <th class="center">Payment</th>
+        <th>Items</th>
+        <th class="right">Total</th>
+        <th>Review Info</th>
+        ${status === "dispatched" ? "<th>Dispatched By</th>" : ""}
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+
+  <div class="footer">
+    Generated on ${new Date().toLocaleString()} &nbsp;|&nbsp; ${esc(orgName || "Attendix")} — Sales Orders System
+  </div>
+</body>
+</html>`;
+
+      await exportHtmlReport(`orders_${status}_${new Date().toISOString().slice(0, 10)}`, html);
+    } catch (e: any) {
+      alert(e?.message ?? "Export failed");
+    }
+  };
+
   return (
     <AppShell>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-zinc-900">Order Approvals</h1>
-          <Button variant="secondary" onClick={load} disabled={loading} className="h-9 px-3 text-xs">
-            {loading ? "Loading…" : "Refresh"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              onClick={exportPdf}
+              disabled={loading || orders.length === 0}
+              className="h-9 px-3 text-xs"
+            >
+              Export PDF
+            </Button>
+            <Button variant="secondary" onClick={load} disabled={loading} className="h-9 px-3 text-xs">
+              {loading ? "Loading…" : "Refresh"}
+            </Button>
+          </div>
         </div>
 
         <div className="flex gap-1 border-b border-zinc-200">
