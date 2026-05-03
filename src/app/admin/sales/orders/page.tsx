@@ -247,6 +247,174 @@ export default function AdminOrdersPage() {
 
   const fmt = (d: string) => new Date(d).toLocaleString();
 
+  const exportOrderPdf = async (o: Order) => {
+    try {
+      const esc = (v: string) =>
+        v.replace(/[&<>"']/g, (c) =>
+          c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === '"' ? "&quot;" : "&#39;"
+        );
+
+      const statusLabel = o.status.charAt(0).toUpperCase() + o.status.slice(1);
+      const statusColor =
+        o.status === "pending" ? "#b45309" :
+        o.status === "approved" ? "#15803d" :
+        o.status === "dispatched" ? "#1d4ed8" : "#b91c1c";
+
+      const orderRef = o.id.slice(-8).toUpperCase();
+
+      const itemRows = o.items.map((it, i) => `
+        <tr>
+          <td class="center">${i + 1}</td>
+          <td>${esc(it.productName)}</td>
+          <td class="center">${it.quantity}</td>
+          <td class="right">${it.unitPrice.toFixed(2)}</td>
+          <td class="right"><strong>${it.lineTotal.toFixed(2)}</strong></td>
+        </tr>`).join("");
+
+      const reviewBlock = o.reviewedBy ? `
+        <tr>
+          <td class="label">${o.status === "dispatched" ? "Approved By" : statusLabel + " By"}</td>
+          <td>${esc(o.reviewedBy.name)}${o.reviewedAt ? ` &nbsp;·&nbsp; ${fmt(o.reviewedAt)}` : ""}${o.reviewNotes ? `<br/><em style="color:#666">"${esc(o.reviewNotes)}"</em>` : ""}</td>
+        </tr>` : "";
+
+      const dispatchBlock = o.status === "dispatched" && o.dispatchedBy ? `
+        <tr>
+          <td class="label">Dispatched By</td>
+          <td>${esc(o.dispatchedBy.name)}${o.dispatchedAt ? ` &nbsp;·&nbsp; ${fmt(o.dispatchedAt)}` : ""}</td>
+        </tr>` : "";
+
+      const notesBlock = o.notes ? `
+        <tr>
+          <td class="label">Order Notes</td>
+          <td>${esc(o.notes)}</td>
+        </tr>` : "";
+
+      const reviewNotesBlock = o.reviewNotes && !o.reviewedBy ? `
+        <tr>
+          <td class="label">Review Notes</td>
+          <td>${esc(o.reviewNotes)}</td>
+        </tr>` : "";
+
+      const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Order ${orderRef} — ${esc(orgName)}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #111; padding: 40px; font-size: 12px; }
+
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #111; padding-bottom: 20px; margin-bottom: 28px; }
+    .header-left h1 { font-size: 24px; font-weight: bold; letter-spacing: 1px; }
+    .header-left h2 { font-size: 13px; color: #555; margin-top: 4px; font-weight: normal; }
+    .header-right { text-align: right; }
+    .order-ref { font-size: 20px; font-weight: bold; color: #111; }
+    .order-date { font-size: 11px; color: #777; margin-top: 4px; }
+    .status-badge { display: inline-block; margin-top: 8px; padding: 4px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; color: ${statusColor}; border: 1.5px solid ${statusColor}; }
+
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+    .info-box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px 16px; }
+    .info-box .box-title { font-size: 9px; text-transform: uppercase; letter-spacing: 0.6px; color: #888; margin-bottom: 8px; font-weight: bold; }
+    .info-box .box-row { display: flex; gap: 6px; margin-bottom: 4px; }
+    .info-box .box-label { font-size: 10px; color: #777; min-width: 80px; }
+    .info-box .box-value { font-size: 11px; color: #111; font-weight: 500; }
+
+    .section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: #888; font-weight: bold; margin-bottom: 10px; }
+    table.items { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+    table.items th { background: #f3f4f6; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 10px; text-align: left; border-bottom: 2px solid #ddd; }
+    table.items th.center, table.items td.center { text-align: center; }
+    table.items th.right, table.items td.right { text-align: right; }
+    table.items td { padding: 9px 10px; border-bottom: 1px solid #eee; }
+    table.items tr:last-child td { border-bottom: none; }
+    table.items tr:nth-child(even) td { background: #fafafa; }
+    .total-row { display: flex; justify-content: flex-end; margin-bottom: 28px; }
+    .total-box { border: 2px solid #111; border-radius: 8px; padding: 12px 20px; text-align: right; min-width: 200px; }
+    .total-box .total-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #777; }
+    .total-box .total-value { font-size: 26px; font-weight: bold; color: #111; margin-top: 2px; }
+    .total-box .payment-type { font-size: 10px; color: #555; margin-top: 4px; }
+
+    table.meta { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+    table.meta td { padding: 7px 10px; border-bottom: 1px solid #eee; font-size: 11px; vertical-align: top; }
+    table.meta td.label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; font-weight: bold; width: 140px; padding-top: 9px; }
+    table.meta tr:last-child td { border-bottom: none; }
+
+    .footer { margin-top: 32px; font-size: 10px; color: #aaa; text-align: center; border-top: 1px solid #eee; padding-top: 14px; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-left">
+      <h1>${esc(orgName || "Attendix")}</h1>
+      <h2>Sales Order</h2>
+    </div>
+    <div class="header-right">
+      <div class="order-ref">Order #${orderRef}</div>
+      <div class="order-date">Placed on ${fmt(o.createdAt)}</div>
+      <div><span class="status-badge">${statusLabel}</span></div>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-box">
+      <div class="box-title">Shop / Customer</div>
+      <div class="box-row"><span class="box-label">Shop Name</span><span class="box-value">${esc(o.shop.name)}</span></div>
+      ${o.shop.phone ? `<div class="box-row"><span class="box-label">Phone</span><span class="box-value">${esc(o.shop.phone)}</span></div>` : ""}
+    </div>
+    <div class="info-box">
+      <div class="box-title">Order Info</div>
+      <div class="box-row"><span class="box-label">Sales Rep</span><span class="box-value">${esc(o.user.name)}</span></div>
+      <div class="box-row"><span class="box-label">Payment</span><span class="box-value">${o.paymentType.charAt(0).toUpperCase() + o.paymentType.slice(1)}</span></div>
+      <div class="box-row"><span class="box-label">Order Ref</span><span class="box-value">#${orderRef}</span></div>
+    </div>
+  </div>
+
+  <div class="section-title">Order Items</div>
+  <table class="items">
+    <thead>
+      <tr>
+        <th class="center">#</th>
+        <th>Product</th>
+        <th class="center">Qty</th>
+        <th class="right">Unit Price</th>
+        <th class="right">Line Total</th>
+      </tr>
+    </thead>
+    <tbody>${itemRows}</tbody>
+  </table>
+
+  <div class="total-row">
+    <div class="total-box">
+      <div class="total-label">Order Total</div>
+      <div class="total-value">${o.total.toFixed(2)}</div>
+      <div class="payment-type">${o.paymentType.charAt(0).toUpperCase() + o.paymentType.slice(1)} Payment</div>
+    </div>
+  </div>
+
+  ${(reviewBlock || dispatchBlock || notesBlock || reviewNotesBlock) ? `
+  <div class="section-title">Order History</div>
+  <table class="meta">
+    <tbody>
+      ${reviewBlock}
+      ${dispatchBlock}
+      ${notesBlock}
+      ${reviewNotesBlock}
+    </tbody>
+  </table>` : ""}
+
+  <div class="footer">
+    Generated on ${new Date().toLocaleString()} &nbsp;|&nbsp; ${esc(orgName || "Attendix")} — Sales Orders System
+  </div>
+</body>
+</html>`;
+
+      await exportHtmlReport(`order_${orderRef}_${o.shop.name.replace(/\s+/g, "_")}`, html);
+    } catch (e: any) {
+      alert(e?.message ?? "Export failed");
+    }
+  };
+
   const exportPdf = async () => {
     try {
       const esc = (v: string) =>
@@ -780,7 +948,14 @@ export default function AdminOrdersPage() {
                   )}
 
                   {o.status === "approved" && (
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => exportOrderPdf(o)}
+                        className="h-9 px-3 text-xs rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-colors"
+                      >
+                        ↓ Download PDF
+                      </button>
                       <Button
                         onClick={() => dispatchOrder(o.id)}
                         disabled={busyId === o.id}
@@ -788,6 +963,18 @@ export default function AdminOrdersPage() {
                       >
                         {busyId === o.id ? "Dispatching…" : "Dispatch & notify customer"}
                       </Button>
+                    </div>
+                  )}
+
+                  {(o.status === "dispatched" || o.status === "rejected") && (
+                    <div className="flex justify-start">
+                      <button
+                        type="button"
+                        onClick={() => exportOrderPdf(o)}
+                        className="h-9 px-3 text-xs rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-colors"
+                      >
+                        ↓ Download PDF
+                      </button>
                     </div>
                   )}
 
@@ -822,6 +1009,13 @@ export default function AdminOrdersPage() {
                         >
                           Edit
                         </Button>
+                        <button
+                          type="button"
+                          onClick={() => exportOrderPdf(o)}
+                          className="h-9 px-3 text-xs rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-colors"
+                        >
+                          ↓ Download PDF
+                        </button>
                         <button
                           type="button"
                           onClick={() => {
