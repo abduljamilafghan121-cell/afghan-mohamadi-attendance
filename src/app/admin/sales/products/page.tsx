@@ -24,11 +24,23 @@ export default function AdminProductsPage() {
   const token = typeof window !== "undefined" ? getToken() : null;
   const user = useMemo(() => (token ? parseJwt(token) : null), [token]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [search, setSearch] = useState("");
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [editing, setEditing] = useState<Record<string, { name: string; price: string }>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        String(p.price).includes(q) ||
+        (p.isActive ? "active" : "inactive").includes(q)
+    );
+  }, [products, search]);
 
   useEffect(() => {
     if (!token) router.push("/login");
@@ -146,7 +158,20 @@ export default function AdminProductsPage() {
           {error && <div className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
         </Card>
 
-        <Card title={`All products (${products.length})`}>
+        <Card
+          title={
+            search.trim()
+              ? `Products — ${filtered.length} of ${products.length} result${filtered.length !== 1 ? "s" : ""}`
+              : `All products (${products.length})`
+          }
+        >
+          <div className="mb-4">
+            <Input
+              placeholder="Search by name, price or status…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
@@ -158,7 +183,7 @@ export default function AdminProductsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {products.map((p) => {
+                {filtered.map((p) => {
                   const e = editing[p.id];
                   return (
                     <tr key={p.id}>
@@ -246,10 +271,12 @@ export default function AdminProductsPage() {
                     </tr>
                   );
                 })}
-                {products.length === 0 && (
+                {filtered.length === 0 && (
                   <tr>
                     <td colSpan={4} className="py-6 text-center text-sm text-zinc-500">
-                      No products yet.
+                      {search.trim()
+                        ? `No products match "${search}".`
+                        : "No products yet."}
                     </td>
                   </tr>
                 )}
