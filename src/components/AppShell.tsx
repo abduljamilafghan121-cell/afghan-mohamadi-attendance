@@ -95,13 +95,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [org, setOrg] = useState<Org | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [adminSearch, setAdminSearch] = useState("");
   const adminRef = useRef<HTMLDivElement>(null);
+  const adminSearchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setTok(getToken());
     setMenuOpen(false);
     setAdminOpen(false);
+    setAdminSearch("");
   }, [pathname]);
+
+  useEffect(() => {
+    if (adminOpen) {
+      setAdminSearch("");
+      setTimeout(() => adminSearchRef.current?.focus(), 60);
+    }
+  }, [adminOpen]);
 
   useEffect(() => {
     fetch("/api/org", { cache: "no-store" })
@@ -165,6 +175,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (href === "/admin/outstation") return pendingByKey.outstation ?? 0;
     return 0;
   };
+
+  const filteredAdminItems = useMemo<AdminItem[]>(() => {
+    const q = adminSearch.trim().toLowerCase();
+    if (!q) return adminItems;
+    const result: AdminItem[] = [];
+    let pendingSep: AdminItem | null = null;
+    for (const item of adminItems) {
+      if (item.kind === "sep") {
+        pendingSep = item;
+      } else if (item.label.toLowerCase().includes(q)) {
+        if (pendingSep) { result.push(pendingSep); pendingSep = null; }
+        result.push(item);
+      }
+    }
+    return result;
+  }, [adminSearch]);
 
   const onLogout = () => {
     clearToken();
@@ -261,37 +287,79 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
 
                 {adminOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-60 rounded-xl border border-zinc-200 bg-white py-1.5 shadow-lg z-30 max-h-[80vh] overflow-y-auto">
-                    {adminItems.map((item, i) => {
-                      if (item.kind === "sep") {
-                        return (
-                          <div key={`sep-${i}`} className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
-                            {item.label}
-                          </div>
-                        );
-                      }
-                      const c = adminLinkPendingCount(item.href);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={() => setAdminOpen(false)}
-                          className={`
-                            flex items-center gap-2.5 px-4 py-2 text-sm transition-colors duration-100
-                            ${pathname === item.href ? "bg-zinc-100 font-medium text-zinc-900" : "text-zinc-700 hover:bg-zinc-50"}
-                            active:bg-zinc-200
-                          `}
-                        >
-                          <span className="shrink-0 text-zinc-400">{item.icon}</span>
-                          <span className="flex-1">{item.label}</span>
-                          {c > 0 && (
-                            <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1.5 text-[11px] font-semibold leading-5 text-white">
-                              {c > 99 ? "99+" : c}
-                            </span>
-                          )}
-                        </Link>
-                      );
-                    })}
+                  <div className="absolute right-0 top-full mt-1 w-64 rounded-xl border border-zinc-200 bg-white shadow-lg z-30 flex flex-col max-h-[82vh]">
+                    {/* Search bar */}
+                    <div className="sticky top-0 z-10 bg-white px-3 pt-2.5 pb-2 border-b border-zinc-100">
+                      <div className="relative">
+                        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input
+                          ref={adminSearchRef}
+                          type="text"
+                          value={adminSearch}
+                          onChange={(e) => setAdminSearch(e.target.value)}
+                          onKeyDown={(e) => e.key === "Escape" && setAdminOpen(false)}
+                          placeholder="Search admin pages…"
+                          className="w-full rounded-lg border border-zinc-200 bg-zinc-50 py-1.5 pl-8 pr-3 text-xs text-zinc-800 placeholder-zinc-400 outline-none focus:border-zinc-400 focus:bg-white"
+                        />
+                        {adminSearch && (
+                          <button
+                            type="button"
+                            onClick={() => { setAdminSearch(""); adminSearchRef.current?.focus(); }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                          >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {/* Results list */}
+                    <div className="overflow-y-auto py-1.5">
+                      {filteredAdminItems.length === 0 ? (
+                        <div className="px-4 py-5 text-center text-xs text-zinc-400">No pages match "{adminSearch}"</div>
+                      ) : (
+                        filteredAdminItems.map((item, i) => {
+                          if (item.kind === "sep") {
+                            return (
+                              <div key={`sep-${i}`} className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                                {item.label}
+                              </div>
+                            );
+                          }
+                          const c = adminLinkPendingCount(item.href);
+                          const q = adminSearch.trim().toLowerCase();
+                          const label = item.label;
+                          const idx = q ? label.toLowerCase().indexOf(q) : -1;
+                          return (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              onClick={() => setAdminOpen(false)}
+                              className={`
+                                flex items-center gap-2.5 px-4 py-2 text-sm transition-colors duration-100
+                                ${pathname === item.href ? "bg-zinc-100 font-medium text-zinc-900" : "text-zinc-700 hover:bg-zinc-50"}
+                                active:bg-zinc-200
+                              `}
+                            >
+                              <span className="shrink-0 text-zinc-400">{item.icon}</span>
+                              <span className="flex-1">
+                                {idx >= 0 ? (
+                                  <>
+                                    {label.slice(0, idx)}
+                                    <mark className="bg-yellow-100 text-yellow-800 rounded-sm px-0.5">{label.slice(idx, idx + q.length)}</mark>
+                                    {label.slice(idx + q.length)}
+                                  </>
+                                ) : label}
+                              </span>
+                              {c > 0 && (
+                                <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1.5 text-[11px] font-semibold leading-5 text-white">
+                                  {c > 99 ? "99+" : c}
+                                </span>
+                              )}
+                            </Link>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -387,29 +455,67 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
             {user?.role === "admin" && (
               <>
-                {adminItems.map((item, i) => {
-                  if (item.kind === "sep") {
+                <div className="mt-2 mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">Admin</div>
+                {/* Mobile admin search */}
+                <div className="px-2 pb-1">
+                  <div className="relative">
+                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input
+                      type="text"
+                      value={adminSearch}
+                      onChange={(e) => setAdminSearch(e.target.value)}
+                      placeholder="Search admin pages…"
+                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50 py-1.5 pl-8 pr-8 text-xs text-zinc-800 placeholder-zinc-400 outline-none focus:border-zinc-400 focus:bg-white"
+                    />
+                    {adminSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setAdminSearch("")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {filteredAdminItems.length === 0 ? (
+                  <div className="px-4 py-3 text-xs text-zinc-400">No pages match "{adminSearch}"</div>
+                ) : (
+                  filteredAdminItems.map((item, i) => {
+                    if (item.kind === "sep") {
+                      return (
+                        <div key={`msep-${i}`} className="mt-2 mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                          {item.label}
+                        </div>
+                      );
+                    }
+                    const c = adminLinkPendingCount(item.href);
+                    const q = adminSearch.trim().toLowerCase();
+                    const label = item.label;
+                    const idx = q ? label.toLowerCase().indexOf(q) : -1;
                     return (
-                      <div key={`msep-${i}`} className="mt-2 mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
-                        {item.label}
-                      </div>
-                    );
-                  }
-                  const c = adminLinkPendingCount(item.href);
-                  return (
-                    <MobileNavLink key={item.href} href={item.href} active={pathname === item.href} onClick={() => setMenuOpen(false)}>
-                      <span className="inline-flex w-full items-center gap-2.5">
-                        <span className="shrink-0 text-zinc-400">{item.icon}</span>
-                        <span className="flex-1">{item.label}</span>
-                        {c > 0 && (
-                          <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1.5 text-[11px] font-semibold leading-5 text-white">
-                            {c > 99 ? "99+" : c}
+                      <MobileNavLink key={item.href} href={item.href} active={pathname === item.href} onClick={() => setMenuOpen(false)}>
+                        <span className="inline-flex w-full items-center gap-2.5">
+                          <span className="shrink-0 text-zinc-400">{item.icon}</span>
+                          <span className="flex-1">
+                            {idx >= 0 ? (
+                              <>
+                                {label.slice(0, idx)}
+                                <mark className="bg-yellow-100 text-yellow-800 rounded-sm px-0.5">{label.slice(idx, idx + q.length)}</mark>
+                                {label.slice(idx + q.length)}
+                              </>
+                            ) : label}
                           </span>
-                        )}
-                      </span>
-                    </MobileNavLink>
-                  );
-                })}
+                          {c > 0 && (
+                            <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1.5 text-[11px] font-semibold leading-5 text-white">
+                              {c > 99 ? "99+" : c}
+                            </span>
+                          )}
+                        </span>
+                      </MobileNavLink>
+                    );
+                  })
+                )}
               </>
             )}
             {user ? (
